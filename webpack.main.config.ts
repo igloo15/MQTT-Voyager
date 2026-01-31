@@ -17,4 +17,7 @@ export const mainConfig: Configuration = {
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css', '.json'],
   },
+  externals: {
+    'better-sqlite3': 'commonjs better-sqlite3',
+  },
 };
