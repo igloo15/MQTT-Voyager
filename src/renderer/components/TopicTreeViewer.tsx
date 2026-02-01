@@ -43,6 +43,7 @@ export const TopicTreeViewer: React.FC = () => {
   const [searchValue, setSearchValue] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [autoExpandParent, setAutoExpandParent] = useState(true);
+  const [quickSubscribeTopic, setQuickSubscribeTopic] = useState('');
 
   useEffect(() => {
     loadTopicTree();
@@ -283,6 +284,25 @@ export const TopicTreeViewer: React.FC = () => {
     setExpandedKeys([]);
   };
 
+  const handleQuickSubscribe = async () => {
+    if (!quickSubscribeTopic.trim()) {
+      antMessage.warning('Please enter a topic');
+      return;
+    }
+
+    try {
+      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
+        topic: quickSubscribeTopic,
+        qos: 0,
+      });
+      antMessage.success(`Subscribed to ${quickSubscribeTopic}`);
+      setQuickSubscribeTopic('');
+      await loadTopicTree();
+    } catch (error: any) {
+      antMessage.error(`Failed to subscribe: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   return (
     <Card
       title={
@@ -323,6 +343,21 @@ export const TopicTreeViewer: React.FC = () => {
       styles={{ body: { padding: '12px' } }}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        {/* Quick Subscribe */}
+        <Space.Compact style={{ width: '100%' }}>
+          <Input
+            placeholder="Topic to subscribe (e.g., sensors/#)"
+            prefix={<ApiOutlined />}
+            value={quickSubscribeTopic}
+            onChange={(e) => setQuickSubscribeTopic(e.target.value)}
+            onPressEnter={handleQuickSubscribe}
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleQuickSubscribe}>
+            Subscribe
+          </Button>
+        </Space.Compact>
+
+        {/* Search Topics */}
         <Search
           placeholder="Search topics..."
           prefix={<SearchOutlined />}
