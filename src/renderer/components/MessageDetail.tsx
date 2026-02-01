@@ -14,10 +14,8 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
   const [activeTab, setActiveTab] = useState('formatted');
 
   const getPayloadString = (): string => {
-    if (Buffer.isBuffer(message.payload)) {
-      return message.payload.toString('utf-8');
-    }
-    return message.payload as string;
+    // Payloads are always strings in renderer (converted before IPC)
+    return typeof message.payload === 'string' ? message.payload : String(message.payload);
   };
 
   const detectPayloadType = (): 'json' | 'xml' | 'text' | 'binary' => {
@@ -56,11 +54,18 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
     return payload;
   };
 
-  const getPayloadAsHex = (): string => {
-    if (Buffer.isBuffer(message.payload)) {
-      return message.payload.toString('hex').match(/.{1,2}/g)?.join(' ') || '';
+  const stringToHex = (str: string): string => {
+    const hex = [];
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i);
+      hex.push(charCode.toString(16).padStart(2, '0'));
     }
-    return Buffer.from(message.payload as string).toString('hex').match(/.{1,2}/g)?.join(' ') || '';
+    return hex.join(' ');
+  };
+
+  const getPayloadAsHex = (): string => {
+    const payload = getPayloadString();
+    return stringToHex(payload);
   };
 
   const handleCopy = (text: string, label: string) => {
@@ -106,10 +111,7 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
           <Tag>{payloadType.toUpperCase()}</Tag>
         </Descriptions.Item>
         <Descriptions.Item label="Payload Size">
-          {Buffer.isBuffer(message.payload)
-            ? message.payload.length
-            : Buffer.from(message.payload as string).length}{' '}
-          bytes
+          {new TextEncoder().encode(getPayloadString()).length} bytes
         </Descriptions.Item>
       </Descriptions>
 
