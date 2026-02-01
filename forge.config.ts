@@ -14,6 +14,7 @@ import { rendererConfig } from './webpack.renderer.config';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
+    icon: './images/voyager_icon'
   },
   rebuildConfig: {
     onlyModules: ['better-sqlite3'],

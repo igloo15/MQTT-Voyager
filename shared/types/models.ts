@@ -1,6 +1,6 @@
 // MQTT Connection Configuration
 export interface ConnectionConfig {
-  id: string;
+  id?: string;
   name: string;
   host: string;
   port: number;
@@ -8,6 +8,7 @@ export interface ConnectionConfig {
   clientId?: string;
   username?: string;
   password?: string;
+  passwordEncrypted?: boolean;
   cleanSession?: boolean;
   keepalive?: number;
   reconnectPeriod?: number;

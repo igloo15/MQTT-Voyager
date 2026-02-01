@@ -1,9 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeImage, Tray } from 'electron';
 import { IPC_CHANNELS } from '../shared/types/ipc.types';
 import { MqttService } from './services/mqtt/MqttService';
 import { TopicTree } from './services/mqtt/TopicTree';
-// TODO: Fix better-sqlite3 native module loading in Electron Forge
-// import { MessageHistory } from './services/storage/MessageHistory';
+import { MessageHistory } from './services/storage/MessageHistory';
+import { ConnectionStore } from './services/storage/ConnectionStore';
 import type {
   ConnectionConfig,
   PublishOptions,
@@ -25,10 +25,14 @@ let mainWindow: BrowserWindow | null = null;
 // Service instances
 const mqttService = new MqttService();
 const topicTree = new TopicTree();
-// TODO: Enable when SQLite is fixed
-// let messageHistory: MessageHistory | null = null;
+const connectionStore = new ConnectionStore();
+let messageHistory: MessageHistory | null = null;
+
+const trayIconPath = nativeImage.createFromPath('./images/voyager_icon.png');
+const appIconPath = nativeImage.createFromPath('./images/voyager_icon.png');
 
 const createWindow = () => {
+  const appTray = new Tray(trayIconPath);
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -39,7 +43,8 @@ const createWindow = () => {
       contextIsolation: true,
       sandbox: false
     },
-    title: 'MQTT Voyager'
+    title: 'MQTT Voyager',
+    icon: appIconPath,
   });
 
   // Load the index.html of the app
@@ -59,13 +64,13 @@ const createWindow = () => {
 
 // Initialize services
 const initializeServices = () => {
-  // TODO: Initialize message history database when SQLite is fixed
-  // messageHistory = new MessageHistory();
+  // Initialize message history database
+  messageHistory = new MessageHistory();
 
   // Set up MQTT service event listeners
   mqttService.on('message', (message) => {
-    // TODO: Add message to history when SQLite is fixed
-    // messageHistory?.addMessage(message);
+    // Add message to history
+    messageHistory?.addMessage(message);
 
     // Update topic tree
     topicTree.addMessage(message);
@@ -105,6 +110,12 @@ const registerIpcHandlers = () => {
   ipcMain.handle(IPC_CHANNELS.MQTT_CONNECT, async (_event, config: ConnectionConfig) => {
     try {
       await mqttService.connect(config);
+
+      // Save as last used connection if it has an ID
+      if (config.id) {
+        connectionStore.setLastUsedConnection(config.id);
+      }
+
       console.log('Connected to MQTT broker');
     } catch (error) {
       console.error('Failed to connect to MQTT broker:', error);
@@ -171,32 +182,127 @@ const registerIpcHandlers = () => {
 
   // Message Search
   ipcMain.handle(IPC_CHANNELS.MESSAGE_SEARCH, async (_event, filter: MessageFilter) => {
-    // TODO: Enable when SQLite is fixed
-    // if (!messageHistory) {
-    //   return [];
-    // }
-    // return messageHistory.searchMessages(filter);
-    return [];
+    
+    if (!messageHistory) {
+      return [];
+    }
+    return messageHistory.searchMessages(filter);
   });
 
   // Clear messages
   ipcMain.handle(IPC_CHANNELS.MESSAGE_CLEAR, async () => {
-    // TODO: Enable when SQLite is fixed
-    // if (messageHistory) {
-    //   messageHistory.clearAll();
-    //   topicTree.clear();
-    // }
+    if (messageHistory) {
+      messageHistory.clearAll();
+      topicTree.clear();
+    }
     topicTree.clear();
   });
 
   // Get statistics
   ipcMain.handle(IPC_CHANNELS.MESSAGE_GET_STATS, async () => {
-    // TODO: Enable when SQLite is fixed
-    // if (!messageHistory) {
-    //   return null;
-    // }
-    // return messageHistory.getStatistics();
-    return null;
+
+    if (!messageHistory) {
+      return null;
+    }
+    return messageHistory.getStatistics();
+  });
+
+  // ===== Connection Profile Management =====
+
+  // Save connection profile
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_SAVE, async (_event, connection: ConnectionConfig) => {
+    try {
+      connectionStore.saveConnection(connection);
+      console.log(`Saved connection profile: ${connection.name}`);
+      return connection.id;
+    } catch (error) {
+      console.error('Failed to save connection:', error);
+      throw error;
+    }
+  });
+
+  // Get all connection profiles
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_LIST, async () => {
+    try {
+      return connectionStore.getAllConnections();
+    } catch (error) {
+      console.error('Failed to get connections:', error);
+      throw error;
+    }
+  });
+
+  // Get a specific connection profile
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_GET, async (_event, id: string) => {
+    try {
+      return connectionStore.getConnection(id);
+    } catch (error) {
+      console.error('Failed to get connection:', error);
+      throw error;
+    }
+  });
+
+  // Delete connection profile
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_DELETE, async (_event, id: string) => {
+    try {
+      const success = connectionStore.deleteConnection(id);
+      if (success) {
+        console.log(`Deleted connection profile: ${id}`);
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to delete connection:', error);
+      throw error;
+    }
+  });
+
+  // Update connection profile
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_UPDATE, async (_event, { id, updates }: { id: string; updates: Partial<ConnectionConfig> }) => {
+    try {
+      const success = connectionStore.updateConnection(id, updates);
+      if (success) {
+        console.log(`Updated connection profile: ${id}`);
+      }
+      return success;
+    } catch (error) {
+      console.error('Failed to update connection:', error);
+      throw error;
+    }
+  });
+
+  // Get last used connection
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_GET_LAST_USED, async () => {
+    try {
+      const lastUsedId = connectionStore.getLastUsedConnection();
+      if (lastUsedId) {
+        return connectionStore.getConnection(lastUsedId);
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get last used connection:', error);
+      throw error;
+    }
+  });
+
+  // Export connections
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_EXPORT, async () => {
+    try {
+      return connectionStore.exportConnections();
+    } catch (error) {
+      console.error('Failed to export connections:', error);
+      throw error;
+    }
+  });
+
+  // Import connections
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_IMPORT, async (_event, json: string) => {
+    try {
+      const count = connectionStore.importConnections(json);
+      console.log(`Imported ${count} connection profiles`);
+      return count;
+    } catch (error) {
+      console.error('Failed to import connections:', error);
+      throw error;
+    }
   });
 
   console.log('IPC handlers registered successfully');
@@ -232,8 +338,7 @@ app.on('before-quit', async () => {
     await mqttService.disconnect();
   }
 
-  // TODO: Close database when SQLite is fixed
-  // if (messageHistory) {
-  //   messageHistory.close();
-  // }
+  if (messageHistory) {
+    messageHistory.close();
+  }
 });

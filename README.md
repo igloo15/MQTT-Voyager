@@ -84,18 +84,42 @@ npm run make          # Build for current platform
 - Ping/pong handler demonstrating main ↔ renderer communication
 - Click "Test IPC Communication" button to verify it works!
 
-## Next Steps (Phase 2+)
+## Features Implemented
+
+### Phase 2: MQTT Core Service ✅
+
+**MqttService** ([src/services/mqtt/MqttService.ts](src/services/mqtt/MqttService.ts))
+- ✅ Connect/disconnect to MQTT brokers
+- ✅ Subscribe/unsubscribe to topics
+- ✅ Publish messages with QoS (0, 1, 2) and retain options
+- ✅ Auto-reconnect with exponential backoff
+- ✅ Event-based message handling
+- ✅ Connection status tracking
+
+**TopicTree** ([src/services/mqtt/TopicTree.ts](src/services/mqtt/TopicTree.ts))
+- ✅ Hierarchical topic organization
+- ✅ Message count tracking
+- ✅ Wildcard subscription support (+, #)
+- ✅ Topic search and traversal
+
+**MessageHistory** ([src/services/storage/MessageHistory.ts](src/services/storage/MessageHistory.ts))
+- ✅ SQLite database schema
+- ✅ Full-text search (FTS5)
+- ✅ Message filtering and queries
+- ✅ Statistics tracking
+- ✅ Export to JSON/CSV
+- ⚠️ **Currently disabled** due to better-sqlite3 native module loading in Electron Forge
+
+**Test UI** ([src/renderer/App.tsx](src/renderer/App.tsx))
+- ✅ Connect to MQTT broker
+- ✅ Subscribe to topics
+- ✅ Publish messages
+- ✅ Real-time connection status
+- ✅ Message counter
+
+## Next Steps (Phase 3+)
 
 The following features are planned according to the original implementation plan:
-
-### Phase 2: MQTT Core Service
-- [ ] Create MqttService class in main process
-- [ ] Implement connection lifecycle management
-- [ ] Add subscribe/unsubscribe functionality
-- [ ] Implement publish functionality
-- [ ] Handle QoS levels (0, 1, 2)
-- [ ] Auto-reconnect with exponential backoff
-- [ ] Set up SQLite schema for message history
 
 ### Phase 3: Connection Management
 - [ ] Save and load connection profiles with electron-store
@@ -200,6 +224,14 @@ If you get module resolution errors:
 2. Delete `node_modules` and `package-lock.json`
 3. Run `npm install`
 4. Run `npm start`
+
+### better-sqlite3 Native Module Issue
+
+**Known Issue**: The `better-sqlite3` package requires native node modules which need special handling in Electron Forge. Currently disabled in the codebase.
+
+**Workaround**: MessageHistory functionality is temporarily commented out. Messages are still tracked in memory via TopicTree, but persistence is disabled.
+
+**Future Fix**: Will require proper native module configuration in Electron Forge, potentially using `@electron-forge/plugin-auto-unpack-natives` or alternative database solutions like SQLite via better-sqlite3-multiple-ciphers or sql.js.
 
 ## Migration History
 

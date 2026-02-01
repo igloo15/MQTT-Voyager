@@ -25,11 +25,15 @@ export const IPC_CHANNELS = {
   MQTT_STATUS: 'mqtt:status',
   MQTT_ERROR: 'mqtt:error',
 
-  // Connection profiles (to be implemented in Phase 3)
+  // Connection profiles
   CONNECTION_SAVE: 'connection:save',
   CONNECTION_LIST: 'connection:list',
   CONNECTION_DELETE: 'connection:delete',
   CONNECTION_GET: 'connection:get',
+  CONNECTION_UPDATE: 'connection:update',
+  CONNECTION_GET_LAST_USED: 'connection:get-last-used',
+  CONNECTION_EXPORT: 'connection:export',
+  CONNECTION_IMPORT: 'connection:import',
 
   // Messages
   MESSAGE_SEARCH: 'message:search',

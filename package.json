@@ -1,8 +1,8 @@
 {
-  "name": "mqtt-voyager-forge",
-  "productName": "mqtt-voyager-forge",
+  "name": "mqtt-voyager",
+  "productName": "MQTT Voyager",
   "version": "1.0.0",
-  "description": "My Electron application description",
+  "description": "MQTT Voyager is an advanced MQTT client for managing and monitoring MQTT topics and messages with ease.",
   "main": ".webpack/main",
   "private": true,
   "scripts": {
@@ -28,6 +28,7 @@
     "@electron-forge/plugin-fuses": "^7.11.1",
     "@electron-forge/plugin-webpack": "^7.11.1",
     "@electron/fuses": "^1.8.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -46,6 +47,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "antd": "^6.2.2",
+    "better-sqlite3": "12.6.2",
     "date-fns": "^4.1.0",
     "electron-squirrel-startup": "^1.0.1",
     "electron-store": "^11.0.2",
