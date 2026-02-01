@@ -231,8 +231,10 @@ function App() {
                       <br />
                       <Text type="secondary">✅ Phase 4: Topic Tree Visualization</Text>
                       <br />
+                      <Text type="secondary">✅ Phase 5: Message Viewer & Publisher</Text>
+                      <br />
                       <Text strong style={{ color: '#52c41a' }}>
-                        ✅ Phase 5: Message Viewer & Publisher
+                        ✅ Phase 6: Search & Filtering
                       </Text>
                     </div>
                   </Space>

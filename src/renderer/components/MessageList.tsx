@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   List,
   Card,
@@ -11,6 +11,15 @@ import {
   Empty,
   Tooltip,
   Drawer,
+  Collapse,
+  Row,
+  Col,
+  DatePicker,
+  Checkbox,
+  Divider,
+  message as antMessage,
+  Dropdown,
+  Modal,
 } from 'antd';
 import {
   MessageOutlined,
@@ -19,35 +28,63 @@ import {
   ExportOutlined,
   ReloadOutlined,
   EyeOutlined,
+  FilterOutlined,
+  SaveOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
-import type { MqttMessage } from '@shared/types/models';
+import type { MqttMessage, MessageFilter } from '@shared/types/models';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import { MessageDetail } from './MessageDetail';
 import { format } from 'date-fns';
+import dayjs, { Dayjs } from 'dayjs';
+import type { MenuProps } from 'antd';
 
 const { Search } = Input;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
+const { Panel } = Collapse;
+const { TextArea } = Input;
 
 interface MessageListProps {
   maxMessages?: number;
 }
 
-export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 100 }) => {
-  const [messages, setMessages] = useState<MqttMessage[]>([]);
-  const [filteredMessages, setFilteredMessages] = useState<MqttMessage[]>([]);
+interface FilterPreset {
+  name: string;
+  filter: MessageFilter;
+}
+
+export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) => {
+  // Real-time messages (from live stream)
+  const [liveMessages, setLiveMessages] = useState<MqttMessage[]>([]);
+
+  // Database search results
+  const [searchResults, setSearchResults] = useState<MqttMessage[]>([]);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+
   const [selectedMessage, setSelectedMessage] = useState<MqttMessage | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [qosFilter, setQosFilter] = useState<number | 'all'>('all');
 
+  // Filter state
+  const [topicFilter, setTopicFilter] = useState('');
+  const [payloadSearch, setPayloadSearch] = useState('');
+  const [qosFilter, setQosFilter] = useState<number | undefined>(undefined);
+  const [retainedFilter, setRetainedFilter] = useState<boolean | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+  const [filterLimit, setFilterLimit] = useState(200);
+
+  // Filter presets
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
+  const [isPresetModalVisible, setIsPresetModalVisible] = useState(false);
+  const [presetName, setPresetName] = useState('');
+
+  // Live message stream
   useEffect(() => {
-    // Listen for incoming MQTT messages
     const removeListener = window.electronAPI.on(
       IPC_CHANNELS.MQTT_MESSAGE,
       (message: MqttMessage) => {
-        setMessages((prev) => {
+        setLiveMessages((prev) => {
           const newMessages = [message, ...prev];
-          // Limit to maxMessages
           return newMessages.slice(0, maxMessages);
         });
       }
@@ -58,44 +95,154 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 100 }) =
     };
   }, [maxMessages]);
 
+  // Load filter presets from localStorage
   useEffect(() => {
-    // Filter messages based on search and QoS
-    let filtered = messages;
+    const savedPresets = localStorage.getItem('messageFilterPresets');
+    if (savedPresets) {
+      try {
+        setFilterPresets(JSON.parse(savedPresets));
+      } catch (error) {
+        console.error('Failed to load filter presets:', error);
+      }
+    }
+  }, []);
 
-    if (searchTerm) {
-      filtered = filtered.filter((msg) => {
-        const payload = msg.payload.toString().toLowerCase();
-        const topic = msg.topic.toLowerCase();
-        const search = searchTerm.toLowerCase();
-        return topic.includes(search) || payload.includes(search);
-      });
+  // Save filter presets to localStorage
+  useEffect(() => {
+    if (filterPresets.length > 0) {
+      localStorage.setItem('messageFilterPresets', JSON.stringify(filterPresets));
+    }
+  }, [filterPresets]);
+
+  const buildFilter = (): MessageFilter => {
+    const filter: MessageFilter = {
+      limit: filterLimit,
+    };
+
+    if (topicFilter) {
+      filter.topic = topicFilter;
     }
 
-    if (qosFilter !== 'all') {
-      filtered = filtered.filter((msg) => msg.qos === qosFilter);
+    if (payloadSearch) {
+      filter.payloadSearch = payloadSearch;
     }
 
-    setFilteredMessages(filtered);
-  }, [messages, searchTerm, qosFilter]);
+    if (qosFilter !== undefined) {
+      filter.qos = qosFilter as 0 | 1 | 2;
+    }
 
-  const handleClearMessages = () => {
-    setMessages([]);
-    setFilteredMessages([]);
+    if (retainedFilter !== undefined) {
+      filter.retained = retainedFilter;
+    }
+
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      filter.startTime = dateRange[0].valueOf();
+      filter.endTime = dateRange[1].valueOf();
+    }
+
+    return filter;
   };
 
-  const handleExportMessages = async () => {
+  const handleSearch = async () => {
     try {
-      const data = JSON.stringify(filteredMessages, null, 2);
-      const blob = new Blob([data], { type: 'application/json' });
+      const filter = buildFilter();
+      const results = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_SEARCH, filter);
+      setSearchResults(results);
+      setIsSearchMode(true);
+      antMessage.success(`Found ${results.length} messages`);
+    } catch (error: any) {
+      antMessage.error(`Search failed: ${error.message}`);
+      console.error('Search error:', error);
+    }
+  };
+
+  const handleClearFilter = () => {
+    setTopicFilter('');
+    setPayloadSearch('');
+    setQosFilter(undefined);
+    setRetainedFilter(undefined);
+    setDateRange(null);
+    setFilterLimit(200);
+    setIsSearchMode(false);
+    setSearchResults([]);
+  };
+
+  const handleClearAllMessages = async () => {
+    try {
+      await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_CLEAR);
+      setLiveMessages([]);
+      setSearchResults([]);
+      setIsSearchMode(false);
+      antMessage.success('All messages cleared');
+    } catch (error: any) {
+      antMessage.error(`Failed to clear messages: ${error.message}`);
+    }
+  };
+
+  const handleExport = async (format: 'json' | 'csv') => {
+    try {
+      const filter = buildFilter();
+      const data = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_EXPORT, {
+        filter,
+        format,
+      });
+
+      const blob = new Blob([data], {
+        type: format === 'json' ? 'application/json' : 'text/csv',
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `mqtt-messages-${Date.now()}.json`;
+      a.download = `mqtt-messages-${Date.now()}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to export messages:', error);
+
+      antMessage.success(`Exported as ${format.toUpperCase()}`);
+    } catch (error: any) {
+      antMessage.error(`Export failed: ${error.message}`);
+      console.error('Export error:', error);
     }
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) {
+      antMessage.error('Please enter a preset name');
+      return;
+    }
+
+    const filter = buildFilter();
+    const newPreset: FilterPreset = {
+      name: presetName,
+      filter,
+    };
+
+    setFilterPresets((prev) => [...prev, newPreset]);
+    setPresetName('');
+    setIsPresetModalVisible(false);
+    antMessage.success('Filter preset saved');
+  };
+
+  const handleLoadPreset = (preset: FilterPreset) => {
+    const filter = preset.filter;
+
+    setTopicFilter(filter.topic || '');
+    setPayloadSearch(filter.payloadSearch || '');
+    setQosFilter(filter.qos);
+    setRetainedFilter(filter.retained);
+    setFilterLimit(filter.limit || 200);
+
+    if (filter.startTime && filter.endTime) {
+      setDateRange([dayjs(filter.startTime), dayjs(filter.endTime)]);
+    } else {
+      setDateRange(null);
+    }
+
+    antMessage.success(`Loaded preset: ${preset.name}`);
+  };
+
+  const handleDeletePreset = (index: number) => {
+    setFilterPresets((prev) => prev.filter((_, i) => i !== index));
+    antMessage.success('Preset deleted');
   };
 
   const handleViewMessage = (message: MqttMessage) => {
@@ -103,7 +250,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 100 }) =
     setIsDetailVisible(true);
   };
 
-  const formatPayload = (payload: Buffer | string, maxLength = 100): string => {
+  const formatPayload = (payload: Buffer | string, maxLength = 80): string => {
     const str = payload.toString();
     if (str.length > maxLength) {
       return str.substring(0, maxLength) + '...';
@@ -124,76 +271,213 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 100 }) =
     }
   };
 
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'json',
+      label: 'Export as JSON',
+      onClick: () => handleExport('json'),
+    },
+    {
+      key: 'csv',
+      label: 'Export as CSV',
+      onClick: () => handleExport('csv'),
+    },
+  ];
+
+  // Display messages (either live or search results)
+  const displayMessages = isSearchMode ? searchResults : liveMessages;
+  const hasActiveFilters =
+    topicFilter || payloadSearch || qosFilter !== undefined || retainedFilter !== undefined || dateRange;
+
   return (
     <>
       <Card
         title={
           <Space>
             <MessageOutlined />
-            Messages
-            <Badge count={filteredMessages.length} showZero style={{ backgroundColor: '#52c41a' }} />
+            {isSearchMode ? 'Search Results' : 'Live Messages'}
+            <Badge count={displayMessages.length} showZero style={{ backgroundColor: '#52c41a' }} />
           </Space>
         }
         extra={
           <Space>
-            <Tooltip title="Clear Messages">
+            {isSearchMode && (
+              <Tooltip title="Show Live Messages">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  onClick={() => setIsSearchMode(false)}
+                />
+              </Tooltip>
+            )}
+            <Tooltip title="Clear All Messages">
               <Button
                 type="text"
                 size="small"
-                icon={<ClearOutlined />}
-                onClick={handleClearMessages}
-                disabled={messages.length === 0}
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleClearAllMessages}
               />
             </Tooltip>
-            <Tooltip title="Export Messages">
-              <Button
-                type="text"
-                size="small"
-                icon={<ExportOutlined />}
-                onClick={handleExportMessages}
-                disabled={filteredMessages.length === 0}
-              />
-            </Tooltip>
+            <Dropdown menu={{ items: exportMenuItems }}>
+              <Tooltip title="Export Messages">
+                <Button type="text" size="small" icon={<ExportOutlined />} />
+              </Tooltip>
+            </Dropdown>
           </Space>
         }
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          {/* Filters */}
-          <Space style={{ width: '100%' }}>
-            <Search
-              placeholder="Search topic or payload..."
-              prefix={<SearchOutlined />}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: 300 }}
-              allowClear
-            />
-            <Select
-              value={qosFilter}
-              onChange={setQosFilter}
-              style={{ width: 120 }}
+          {/* Advanced Filters */}
+          <Collapse
+            bordered={false}
+            defaultActiveKey={[]}
+            expandIcon={({ isActive }) => <FilterOutlined rotate={isActive ? 90 : 0} />}
+          >
+            <Panel
+              header={
+                <Space>
+                  <span>Advanced Filters</span>
+                  {hasActiveFilters && <Badge status="processing" text="Active" />}
+                </Space>
+              }
+              key="filters"
             >
-              <Option value="all">All QoS</Option>
-              <Option value={0}>QoS 0</Option>
-              <Option value={1}>QoS 1</Option>
-              <Option value={2}>QoS 2</Option>
-            </Select>
-          </Space>
+              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <label>Topic Filter (supports MQTT wildcards +, #)</label>
+                    <Input
+                      placeholder="sensors/+/temperature"
+                      value={topicFilter}
+                      onChange={(e) => setTopicFilter(e.target.value)}
+                      prefix={<SearchOutlined />}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <label>Payload Search (full-text)</label>
+                    <Input
+                      placeholder="Search in payload..."
+                      value={payloadSearch}
+                      onChange={(e) => setPayloadSearch(e.target.value)}
+                      prefix={<SearchOutlined />}
+                    />
+                  </Col>
+                </Row>
+
+                <Row gutter={[16, 16]}>
+                  <Col span={8}>
+                    <label>QoS Level</label>
+                    <Select
+                      value={qosFilter}
+                      onChange={setQosFilter}
+                      style={{ width: '100%' }}
+                      allowClear
+                      placeholder="All QoS"
+                    >
+                      <Option value={0}>QoS 0</Option>
+                      <Option value={1}>QoS 1</Option>
+                      <Option value={2}>QoS 2</Option>
+                    </Select>
+                  </Col>
+                  <Col span={8}>
+                    <label>Retained</label>
+                    <Select
+                      value={retainedFilter}
+                      onChange={setRetainedFilter}
+                      style={{ width: '100%' }}
+                      allowClear
+                      placeholder="All"
+                    >
+                      <Option value={true}>Retained Only</Option>
+                      <Option value={false}>Non-Retained Only</Option>
+                    </Select>
+                  </Col>
+                  <Col span={8}>
+                    <label>Result Limit</label>
+                    <Select
+                      value={filterLimit}
+                      onChange={setFilterLimit}
+                      style={{ width: '100%' }}
+                    >
+                      <Option value={50}>50 messages</Option>
+                      <Option value={100}>100 messages</Option>
+                      <Option value={200}>200 messages</Option>
+                      <Option value={500}>500 messages</Option>
+                      <Option value={1000}>1000 messages</Option>
+                    </Select>
+                  </Col>
+                </Row>
+
+                <Row gutter={[16, 16]}>
+                  <Col span={24}>
+                    <label>Time Range</label>
+                    <RangePicker
+                      showTime
+                      value={dateRange}
+                      onChange={(dates) => setDateRange(dates)}
+                      style={{ width: '100%' }}
+                      format="YYYY-MM-DD HH:mm:ss"
+                    />
+                  </Col>
+                </Row>
+
+                <Divider />
+
+                <Space>
+                  <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+                    Search Database
+                  </Button>
+                  <Button icon={<ClearOutlined />} onClick={handleClearFilter}>
+                    Clear Filters
+                  </Button>
+                  <Button icon={<SaveOutlined />} onClick={() => setIsPresetModalVisible(true)}>
+                    Save as Preset
+                  </Button>
+                </Space>
+
+                {/* Filter Presets */}
+                {filterPresets.length > 0 && (
+                  <>
+                    <Divider />
+                    <div>
+                      <strong>Saved Presets:</strong>
+                      <Space wrap style={{ marginTop: 8 }}>
+                        {filterPresets.map((preset, index) => (
+                          <Tag
+                            key={index}
+                            closable
+                            onClose={() => handleDeletePreset(index)}
+                            onClick={() => handleLoadPreset(preset)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            {preset.name}
+                          </Tag>
+                        ))}
+                      </Space>
+                    </div>
+                  </>
+                )}
+              </Space>
+            </Panel>
+          </Collapse>
 
           {/* Message List */}
-          {filteredMessages.length === 0 ? (
+          {displayMessages.length === 0 ? (
             <Empty
               description={
-                messages.length === 0
-                  ? 'No messages received yet'
-                  : 'No messages match your filters'
+                isSearchMode
+                  ? 'No messages match your search criteria'
+                  : 'No messages received yet'
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
               style={{ padding: '40px 0' }}
             />
           ) : (
             <List
-              dataSource={filteredMessages}
-              style={{ maxHeight: '500px', overflow: 'auto' }}
+              dataSource={displayMessages}
+              style={{ maxHeight: '400px', overflow: 'auto' }}
               renderItem={(message) => (
                 <List.Item
                   key={message.id}
@@ -244,12 +528,30 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 100 }) =
       <Drawer
         title="Message Details"
         placement="right"
-        width={600}
+        width={700}
         onClose={() => setIsDetailVisible(false)}
         open={isDetailVisible}
       >
         {selectedMessage && <MessageDetail message={selectedMessage} />}
       </Drawer>
+
+      {/* Save Preset Modal */}
+      <Modal
+        title="Save Filter Preset"
+        open={isPresetModalVisible}
+        onOk={handleSavePreset}
+        onCancel={() => {
+          setIsPresetModalVisible(false);
+          setPresetName('');
+        }}
+      >
+        <Input
+          placeholder="Enter preset name"
+          value={presetName}
+          onChange={(e) => setPresetName(e.target.value)}
+          onPressEnter={handleSavePreset}
+        />
+      </Modal>
     </>
   );
 };

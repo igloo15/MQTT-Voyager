@@ -209,6 +209,24 @@ const registerIpcHandlers = () => {
     return messageHistory.getStatistics();
   });
 
+  // Export messages
+  ipcMain.handle(
+    IPC_CHANNELS.MESSAGE_EXPORT,
+    async (_event, { filter, format }: { filter: MessageFilter; format: 'json' | 'csv' }) => {
+      if (!messageHistory) {
+        throw new Error('Message history not initialized');
+      }
+
+      if (format === 'json') {
+        return messageHistory.exportAsJSON(filter);
+      } else if (format === 'csv') {
+        return messageHistory.exportAsCSV(filter);
+      } else {
+        throw new Error(`Unsupported export format: ${format}`);
+      }
+    }
+  );
+
   // ===== Connection Profile Management =====
 
   // Save connection profile

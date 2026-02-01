@@ -2,7 +2,16 @@
 
 A desktop application for visualizing and debugging MQTT messages, built with Electron, React, and TypeScript.
 
-## ✅ Migration Complete!
+## 🚀 Project Status
+
+**Phase 1-6 Complete!** ✅
+
+- ✅ Phase 1: Foundation (Electron Forge + React + TypeScript + Ant Design)
+- ✅ Phase 2: MQTT Core Service (Connect, subscribe, publish with auto-reconnect)
+- ✅ Phase 3: Connection Management (Save profiles, import/export)
+- ✅ Phase 4: Topic Tree Visualization (Hierarchical tree with search)
+- ✅ Phase 5: Message Viewer & Publisher (Real-time display, syntax highlighting)
+- ✅ Phase 6: Search & Filtering (Full-text search, advanced filters, presets)
 
 Successfully migrated from Vite to Electron Forge, resolving the Windows module resolution issues.
 
@@ -108,45 +117,87 @@ npm run make          # Build for current platform
 - ✅ Message filtering and queries
 - ✅ Statistics tracking
 - ✅ Export to JSON/CSV
-- ⚠️ **Currently disabled** due to better-sqlite3 native module loading in Electron Forge
 
-**Test UI** ([src/renderer/App.tsx](src/renderer/App.tsx))
-- ✅ Connect to MQTT broker
-- ✅ Subscribe to topics
-- ✅ Publish messages
-- ✅ Real-time connection status
-- ✅ Message counter
+### Phase 3: Connection Management ✅
 
-## Next Steps (Phase 3+)
+**ConnectionStore** ([src/services/storage/ConnectionStore.ts](src/services/storage/ConnectionStore.ts))
+- ✅ Save and load connection profiles with electron-store
+- ✅ CRUD operations for connection profiles
+- ✅ Import/export connection profiles
+- ✅ Last used connection tracking
 
-The following features are planned according to the original implementation plan:
+**ConnectionForm** ([src/renderer/components/ConnectionForm.tsx](src/renderer/components/ConnectionForm.tsx))
+- ✅ Full connection configuration UI
+- ✅ Support mqtt/mqtts/ws/wss protocols
+- ✅ Username/password authentication
+- ✅ TLS/SSL configuration
+- ✅ Advanced options (clean session, keepalive, will message)
+- ✅ Test connection before saving
+- ✅ Connect directly from form
 
-### Phase 3: Connection Management
-- [ ] Save and load connection profiles with electron-store
-- [ ] Build ConnectionForm component
-- [ ] Support mqtt/mqtts/ws/wss protocols
-- [ ] Encrypt passwords with safeStorage API
-- [ ] TLS/SSL configuration
+**ConnectionList** ([src/renderer/components/ConnectionList.tsx](src/renderer/components/ConnectionList.tsx))
+- ✅ Display all saved connection profiles
+- ✅ Connect/edit/delete actions
+- ✅ Visual status indicators
 
-### Phase 4: Topic Tree Visualization
-- [ ] Build topic tree data structure
-- [ ] Create TopicTree component with Ant Design Tree
-- [ ] Show message count per topic
-- [ ] Support wildcard subscriptions (+, #)
-- [ ] Context menu for actions
+### Phase 4: Topic Tree Visualization ✅
 
-### Phase 5: Message Viewer & Publisher
-- [ ] Message list with virtual scrolling
-- [ ] Message detail panel with syntax highlighting
-- [ ] JSON/XML/binary payload views
-- [ ] Message publisher UI
-- [ ] Message history persistence
+**TopicTreeViewer** ([src/renderer/components/TopicTreeViewer.tsx](src/renderer/components/TopicTreeViewer.tsx))
+- ✅ Hierarchical topic tree display
+- ✅ Message count badges per topic
+- ✅ Last message timestamp
+- ✅ Context menu (subscribe/unsubscribe/copy)
+- ✅ Topic search functionality
+- ✅ Real-time updates
+- ✅ Wildcard subscription support (+, #)
 
-### Phase 6: Search & Filtering
-- [ ] Topic search with regex support
-- [ ] Payload content search
-- [ ] Time range filters
-- [ ] SQLite full-text search
+### Phase 5: Message Viewer & Publisher ✅
+
+**MessageList** ([src/renderer/components/MessageList.tsx](src/renderer/components/MessageList.tsx))
+- ✅ Real-time message stream
+- ✅ Database search with advanced filtering
+- ✅ Topic and payload search
+- ✅ QoS and retained message filtering
+- ✅ Time range filtering
+- ✅ Filter presets (save and load)
+- ✅ Export to JSON/CSV
+- ✅ Pagination support
+
+**MessageDetail** ([src/renderer/components/MessageDetail.tsx](src/renderer/components/MessageDetail.tsx))
+- ✅ Comprehensive message metadata display
+- ✅ Auto-detect payload type (JSON/XML/Text/Binary)
+- ✅ Syntax highlighting for JSON/XML
+- ✅ Multiple view modes (Formatted/Raw/Hex)
+- ✅ Copy to clipboard functionality
+
+**MessagePublisher** ([src/renderer/components/MessagePublisher.tsx](src/renderer/components/MessagePublisher.tsx))
+- ✅ Topic input with autocomplete
+- ✅ Payload editor with text/JSON modes
+- ✅ JSON validation and formatting
+- ✅ QoS selection (0, 1, 2)
+- ✅ Retain flag toggle
+- ✅ Sample payload generation
+- ✅ Clear after publish option
+
+### Phase 6: Search & Filtering ✅
+
+- ✅ Topic filter with MQTT wildcard support (+, #)
+- ✅ Full-text payload search using SQLite FTS5
+- ✅ Time range filters with date picker
+- ✅ QoS level filtering
+- ✅ Retained message filtering
+- ✅ Result limit control (50-1000 messages)
+- ✅ Filter presets (save, load, delete)
+- ✅ Database search vs live message toggle
+- ✅ Export filtered results to JSON/CSV
+
+## Next Steps (Phase 7+)
+
+### Phase 7: Message History & Replay
+- [ ] Message replay functionality with timing control
+- [ ] Statistics dashboard (messages/sec, data volume charts)
+- [ ] Retention policies (time-based, count-based)
+- [ ] Bulk message operations
 
 ### Phase 7: Message History & Replay
 - [ ] Export messages (JSON, CSV)
