@@ -16,6 +16,7 @@ import {
   Switch,
   Tooltip,
 } from 'antd';
+import type { TabsProps } from 'antd';
 import {
   RocketOutlined,
   ApiOutlined,
@@ -24,6 +25,9 @@ import {
   DatabaseOutlined,
   BulbOutlined,
   BulbFilled,
+  DashboardOutlined,
+  BarChartOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
@@ -305,35 +309,76 @@ function App() {
               </Col>
 
               {connectionStatus === 'connected' && (
-                <>
-                  <Col span={10}>
-                    <TopicTreeViewer />
-                  </Col>
-
-                  <Col span={14}>
-                    <Row gutter={[16, 16]}>
-                      <Col span={24}>
-                        <MessagePublisher />
-                      </Col>
-
-                      <Col span={24}>
-                        <MessageList maxMessages={200} />
-                      </Col>
-                    </Row>
-                  </Col>
-
-                  <Col span={12}>
-                    <MessageReplay />
-                  </Col>
-
-                  <Col span={12}>
-                    <Statistics />
-                  </Col>
-
-                  <Col span={24}>
-                    <RetentionPolicy />
-                  </Col>
-                </>
+                <Col span={24}>
+                  <Tabs
+                    defaultActiveKey="dashboard"
+                    type="card"
+                    size="large"
+                    items={[
+                      {
+                        key: 'dashboard',
+                        label: (
+                          <span>
+                            <DashboardOutlined />
+                            Dashboard
+                          </span>
+                        ),
+                        children: (
+                          <Row gutter={[16, 16]}>
+                            <Col span={10}>
+                              <TopicTreeViewer />
+                            </Col>
+                            <Col span={14}>
+                              <Row gutter={[16, 16]}>
+                                <Col span={24}>
+                                  <MessagePublisher />
+                                </Col>
+                                <Col span={24}>
+                                  <MessageList maxMessages={200} />
+                                </Col>
+                              </Row>
+                            </Col>
+                          </Row>
+                        ),
+                      },
+                      {
+                        key: 'analytics',
+                        label: (
+                          <span>
+                            <BarChartOutlined />
+                            Analytics
+                          </span>
+                        ),
+                        children: (
+                          <Row gutter={[16, 16]}>
+                            <Col span={24}>
+                              <Statistics />
+                            </Col>
+                          </Row>
+                        ),
+                      },
+                      {
+                        key: 'tools',
+                        label: (
+                          <span>
+                            <ToolOutlined />
+                            Tools
+                          </span>
+                        ),
+                        children: (
+                          <Row gutter={[16, 16]}>
+                            <Col span={24}>
+                              <MessageReplay />
+                            </Col>
+                            <Col span={24}>
+                              <RetentionPolicy />
+                            </Col>
+                          </Row>
+                        ),
+                      },
+                    ]}
+                  />
+                </Col>
               )}
             </Row>
           </Content>
