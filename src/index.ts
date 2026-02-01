@@ -76,8 +76,15 @@ const initializeServices = () => {
     topicTree.addMessage(message);
 
     // Send message to renderer
+    // Convert Buffer payload to string for IPC transmission
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, message);
+      const messageForRenderer = {
+        ...message,
+        payload: Buffer.isBuffer(message.payload)
+          ? message.payload.toString('utf-8')
+          : message.payload,
+      };
+      mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
       // Notify renderer that topic tree was updated
       mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
     }
@@ -184,11 +191,18 @@ const registerIpcHandlers = () => {
 
   // Message Search
   ipcMain.handle(IPC_CHANNELS.MESSAGE_SEARCH, async (_event, filter: MessageFilter) => {
-    
+
     if (!messageHistory) {
       return [];
     }
-    return messageHistory.searchMessages(filter);
+    const messages = messageHistory.searchMessages(filter);
+    // Convert Buffer payloads to strings for renderer
+    return messages.map(msg => ({
+      ...msg,
+      payload: Buffer.isBuffer(msg.payload)
+        ? msg.payload.toString('utf-8')
+        : msg.payload,
+    }));
   });
 
   // Clear messages
