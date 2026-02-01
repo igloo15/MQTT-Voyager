@@ -11,6 +11,10 @@ import {
   Modal,
   Row,
   Col,
+  ConfigProvider,
+  theme as antdTheme,
+  Switch,
+  Tooltip,
 } from 'antd';
 import {
   RocketOutlined,
@@ -18,6 +22,8 @@ import {
   DisconnectOutlined,
   PlusOutlined,
   DatabaseOutlined,
+  BulbOutlined,
+  BulbFilled,
 } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
@@ -41,6 +47,45 @@ function App() {
   const [selectedConnection, setSelectedConnection] = useState<ConnectionConfig | undefined>();
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Load theme preference from localStorage
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  // Persist dark mode preference
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? event.metaKey : event.ctrlKey;
+
+      // Ctrl/Cmd + D: Toggle dark mode
+      if (modifier && event.key === 'd') {
+        event.preventDefault();
+        setIsDarkMode((prev) => !prev);
+        message.success(`${isDarkMode ? 'Light' : 'Dark'} mode enabled`);
+      }
+
+      // Ctrl/Cmd + N: New connection
+      if (modifier && event.key === 'n') {
+        event.preventDefault();
+        handleNewConnection();
+      }
+
+      // Escape: Close modal
+      if (event.key === 'Escape' && isFormModalVisible) {
+        handleFormCancel();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDarkMode, isFormModalVisible]);
 
   useEffect(() => {
     // Listen for connection status updates
@@ -153,40 +198,51 @@ function App() {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header
-        style={{
-          background: '#fff',
-          padding: '0 24px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <RocketOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-          <Title level={3} style={{ margin: 0 }}>
-            MQTT Voyager
-          </Title>
-        </div>
-        <Space>
-          <Tag color={getStatusColor()}>
-            {connectionStatus.toUpperCase()}
-          </Tag>
-          {messageCount > 0 && <Tag color="blue">Messages: {messageCount}</Tag>}
-          {connectionStatus !== 'disconnected' && (
-            <Button
-              danger
-              size="small"
-              icon={<DisconnectOutlined />}
-              onClick={disconnectFromMQTT}
-            >
-              Disconnect
-            </Button>
-          )}
-        </Space>
-      </Header>
+    <ConfigProvider
+      theme={{
+        algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+      }}
+    >
+      <Layout style={{ minHeight: '100vh' }}>
+        <Header
+          style={{
+            padding: '0 24px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <RocketOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+            <Title level={3} style={{ margin: 0 }}>
+              MQTT Voyager
+            </Title>
+          </div>
+          <Space>
+            <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+              <Button
+                type="text"
+                icon={isDarkMode ? <BulbFilled /> : <BulbOutlined />}
+                onClick={() => setIsDarkMode(!isDarkMode)}
+              />
+            </Tooltip>
+            <Tag color={getStatusColor()}>
+              {connectionStatus.toUpperCase()}
+            </Tag>
+            {messageCount > 0 && <Tag color="blue">Messages: {messageCount}</Tag>}
+            {connectionStatus !== 'disconnected' && (
+              <Button
+                danger
+                size="small"
+                icon={<DisconnectOutlined />}
+                onClick={disconnectFromMQTT}
+              >
+                Disconnect
+              </Button>
+            )}
+          </Space>
+        </Header>
 
       <Layout>
         <Sider width={350} style={{ background: '#fff', padding: '16px' }}>
@@ -297,7 +353,7 @@ function App() {
           onConnect={handleConnect}
         />
       </Modal>
-    </Layout>
+    </ConfigProvider>
   );
 }
 
