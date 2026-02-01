@@ -4,7 +4,7 @@ A desktop application for visualizing and debugging MQTT messages, built with El
 
 ## 🚀 Project Status
 
-**Phase 1-6 Complete!** ✅
+**Phase 1-7 Complete!** ✅
 
 - ✅ Phase 1: Foundation (Electron Forge + React + TypeScript + Ant Design)
 - ✅ Phase 2: MQTT Core Service (Connect, subscribe, publish with auto-reconnect)
@@ -12,6 +12,7 @@ A desktop application for visualizing and debugging MQTT messages, built with El
 - ✅ Phase 4: Topic Tree Visualization (Hierarchical tree with search)
 - ✅ Phase 5: Message Viewer & Publisher (Real-time display, syntax highlighting)
 - ✅ Phase 6: Search & Filtering (Full-text search, advanced filters, presets)
+- ✅ Phase 7: Message History & Replay (Statistics, replay, retention policies)
 
 Successfully migrated from Vite to Electron Forge, resolving the Windows module resolution issues.
 
@@ -191,19 +192,35 @@ npm run make          # Build for current platform
 - ✅ Database search vs live message toggle
 - ✅ Export filtered results to JSON/CSV
 
-## Next Steps (Phase 7+)
+### Phase 7: Message History & Replay ✅
 
-### Phase 7: Message History & Replay
-- [ ] Message replay functionality with timing control
-- [ ] Statistics dashboard (messages/sec, data volume charts)
-- [ ] Retention policies (time-based, count-based)
-- [ ] Bulk message operations
+**Statistics** ([src/renderer/components/Statistics.tsx](src/renderer/components/Statistics.tsx))
+- ✅ Real-time statistics dashboard
+- ✅ Total messages and unique topic count
+- ✅ Messages per second (last minute average)
+- ✅ Data volume tracking with formatted display
+- ✅ Top 10 topic distribution with progress bars
+- ✅ Activity summary and storage usage
+- ✅ Refresh statistics on demand
 
-### Phase 7: Message History & Replay
-- [ ] Export messages (JSON, CSV)
-- [ ] Message replay functionality
-- [ ] Statistics dashboard
-- [ ] Retention policies
+**MessageReplay** ([src/renderer/components/MessageReplay.tsx](src/renderer/components/MessageReplay.tsx))
+- ✅ Load messages from history for replay
+- ✅ Configurable message limit (1-1000)
+- ✅ Preserve original timing or use fixed speed
+- ✅ Adjustable replay speed (0.5x to 10x)
+- ✅ Play, pause, and stop controls
+- ✅ Real-time progress tracking
+- ✅ Automatic stop on completion
+
+**RetentionPolicy** ([src/renderer/components/RetentionPolicy.tsx](src/renderer/components/RetentionPolicy.tsx))
+- ✅ Configurable retention settings (max messages, max age)
+- ✅ Enable/disable automatic cleanup
+- ✅ Manual cleanup by age (1, 7, 30 days)
+- ✅ Clear all messages with confirmation
+- ✅ Current message count display
+- ✅ Settings saved to localStorage
+
+## Next Steps (Phase 8)
 
 ### Phase 8: Polish & Packaging
 - [ ] Dark mode support

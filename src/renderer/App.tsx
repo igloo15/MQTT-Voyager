@@ -27,6 +27,9 @@ import { ConnectionList } from './components/ConnectionList';
 import { TopicTreeViewer } from './components/TopicTreeViewer';
 import { MessageList } from './components/MessageList';
 import { MessagePublisher } from './components/MessagePublisher';
+import { Statistics } from './components/Statistics';
+import { MessageReplay } from './components/MessageReplay';
+import { RetentionPolicy } from './components/RetentionPolicy';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -233,8 +236,10 @@ function App() {
                       <br />
                       <Text type="secondary">✅ Phase 5: Message Viewer & Publisher</Text>
                       <br />
+                      <Text type="secondary">✅ Phase 6: Search & Filtering</Text>
+                      <br />
                       <Text strong style={{ color: '#52c41a' }}>
-                        ✅ Phase 6: Search & Filtering
+                        ✅ Phase 7: Message History & Replay
                       </Text>
                     </div>
                   </Space>
@@ -257,6 +262,18 @@ function App() {
                         <MessageList maxMessages={200} />
                       </Col>
                     </Row>
+                  </Col>
+
+                  <Col span={12}>
+                    <MessageReplay />
+                  </Col>
+
+                  <Col span={12}>
+                    <Statistics />
+                  </Col>
+
+                  <Col span={24}>
+                    <RetentionPolicy />
                   </Col>
                 </>
               )}
