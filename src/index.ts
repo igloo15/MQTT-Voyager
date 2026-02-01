@@ -78,6 +78,8 @@ const initializeServices = () => {
     // Send message to renderer
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, message);
+      // Notify renderer that topic tree was updated
+      mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
     }
   });
 
@@ -301,6 +303,18 @@ const registerIpcHandlers = () => {
       return count;
     } catch (error) {
       console.error('Failed to import connections:', error);
+      throw error;
+    }
+  });
+
+  // ===== Topic Tree =====
+
+  // Get topic tree
+  ipcMain.handle(IPC_CHANNELS.TOPIC_TREE_GET, async () => {
+    try {
+      return topicTree.toJSON();
+    } catch (error) {
+      console.error('Failed to get topic tree:', error);
       throw error;
     }
   });

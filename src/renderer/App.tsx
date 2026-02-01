@@ -24,6 +24,7 @@ import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { ConnectionConfig, ConnectionStatus } from '@shared/types/models';
 import { ConnectionForm } from './components/ConnectionForm';
 import { ConnectionList } from './components/ConnectionList';
+import { TopicTreeViewer } from './components/TopicTreeViewer';
 
 const { Header, Content, Sider } = Layout;
 const { Title, Text } = Typography;
@@ -224,8 +225,10 @@ function App() {
                       <br />
                       <Text type="secondary">✅ Phase 2: MQTT Core Service</Text>
                       <br />
+                      <Text type="secondary">✅ Phase 3: Connection Management</Text>
+                      <br />
                       <Text strong style={{ color: '#52c41a' }}>
-                        ✅ Phase 3: Connection Management
+                        ✅ Phase 4: Topic Tree Visualization
                       </Text>
                     </div>
                   </Space>
@@ -234,45 +237,53 @@ function App() {
 
               {connectionStatus === 'connected' && (
                 <>
-                  <Col span={24}>
-                    <Card title={<><ApiOutlined /> Quick Test</>}>
-                      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                        <div>
-                          <Text strong>Topic: </Text>
-                          <Input
-                            style={{ width: '300px', marginLeft: '8px' }}
-                            value={testTopic}
-                            onChange={(e) => setTestTopic(e.target.value)}
-                            placeholder="Enter topic"
-                          />
-                        </div>
-                        <Space>
-                          <Button onClick={subscribeToTopic}>Subscribe to Topic</Button>
-                          <Button type="primary" onClick={publishMessage}>
-                            Publish Test Message
-                          </Button>
-                        </Space>
-                      </Space>
-                    </Card>
+                  <Col span={10}>
+                    <TopicTreeViewer />
                   </Col>
 
-                  <Col span={24}>
-                    <Card
-                      title={
-                        <Space>
-                          <DatabaseOutlined />
-                          Messages
-                        </Space>
-                      }
-                    >
-                      <div style={{ textAlign: 'center', padding: '40px' }}>
-                        <Text type="secondary">
-                          {messageCount === 0
-                            ? 'No messages received yet. Subscribe to a topic to start receiving messages.'
-                            : `Received ${messageCount} message${messageCount === 1 ? '' : 's'}`}
-                        </Text>
-                      </div>
-                    </Card>
+                  <Col span={14}>
+                    <Row gutter={[16, 16]}>
+                      <Col span={24}>
+                        <Card title={<><ApiOutlined /> Quick Test</>}>
+                          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                            <div>
+                              <Text strong>Topic: </Text>
+                              <Input
+                                style={{ width: '300px', marginLeft: '8px' }}
+                                value={testTopic}
+                                onChange={(e) => setTestTopic(e.target.value)}
+                                placeholder="Enter topic"
+                              />
+                            </div>
+                            <Space>
+                              <Button onClick={subscribeToTopic}>Subscribe to Topic</Button>
+                              <Button type="primary" onClick={publishMessage}>
+                                Publish Test Message
+                              </Button>
+                            </Space>
+                          </Space>
+                        </Card>
+                      </Col>
+
+                      <Col span={24}>
+                        <Card
+                          title={
+                            <Space>
+                              <DatabaseOutlined />
+                              Messages
+                            </Space>
+                          }
+                        >
+                          <div style={{ textAlign: 'center', padding: '40px' }}>
+                            <Text type="secondary">
+                              {messageCount === 0
+                                ? 'No messages received yet. Subscribe to a topic to start receiving messages.'
+                                : `Received ${messageCount} message${messageCount === 1 ? '' : 's'}`}
+                            </Text>
+                          </div>
+                        </Card>
+                      </Col>
+                    </Row>
                   </Col>
                 </>
               )}
