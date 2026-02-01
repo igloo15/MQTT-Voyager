@@ -16,6 +16,7 @@ export class MqttService extends EventEmitter {
   private subscriptions: Map<string, QoS> = new Map();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
+  private isManualDisconnect = false;
 
   constructor() {
     super();
@@ -25,12 +26,15 @@ export class MqttService extends EventEmitter {
    * Connect to MQTT broker
    */
   async connect(config: ConnectionConfig): Promise<void> {
-    if (this.client && this.client.connected) {
+    // Clean up any existing connection first
+    if (this.client) {
       await this.disconnect();
     }
 
     this.config = config;
     this.status = 'connecting';
+    this.isManualDisconnect = false;
+    this.reconnectAttempts = 0;
     this.emit('status', this.status);
 
     return new Promise((resolve, reject) => {
@@ -73,9 +77,16 @@ export class MqttService extends EventEmitter {
         }
 
         console.log(`Connecting to MQTT broker: ${brokerUrl}`);
+        console.log(`MQTT options:`, {
+          clientId: options.clientId,
+          clean: options.clean,
+          keepalive: options.keepalive,
+          reconnectPeriod: options.reconnectPeriod,
+        });
         this.client = mqtt.connect(brokerUrl, options);
 
-        this.client.on('connect', () => {
+        // Set up event handlers - these will be cleaned up in disconnect()
+        const onConnect = () => {
           console.log('MQTT connected successfully');
           this.status = 'connected';
           this.reconnectAttempts = 0;
@@ -84,20 +95,30 @@ export class MqttService extends EventEmitter {
 
           // Resubscribe to previous topics
           this.resubscribeAll();
-        });
+        };
 
-        this.client.on('error', (error) => {
+        const onError = (error: Error) => {
           console.error('MQTT connection error:', error);
+
+          // Only reject on initial connection error
+          const isInitialConnection = this.reconnectAttempts === 0 && this.status === 'connecting';
+
           this.status = 'error';
           this.emit('status', this.status);
           this.emit('error', error.message);
 
-          if (this.reconnectAttempts === 0) {
+          if (isInitialConnection) {
             reject(error);
           }
-        });
+        };
 
-        this.client.on('reconnect', () => {
+        const onReconnect = () => {
+          // Don't reconnect if it was a manual disconnect
+          if (this.isManualDisconnect) {
+            this.client?.end(true);
+            return;
+          }
+
           console.log('MQTT reconnecting...');
           this.reconnectAttempts++;
 
@@ -111,17 +132,17 @@ export class MqttService extends EventEmitter {
 
           this.status = 'reconnecting';
           this.emit('status', this.status);
-        });
+        };
 
-        this.client.on('close', () => {
+        const onClose = () => {
           console.log('MQTT connection closed');
-          if (this.status !== 'disconnected') {
+          if (this.status !== 'disconnected' && !this.isManualDisconnect) {
             this.status = 'disconnected';
             this.emit('status', this.status);
           }
-        });
+        };
 
-        this.client.on('message', (topic, payload, packet) => {
+        const onMessage = (topic: string, payload: Buffer, packet: mqtt.IPublishPacket) => {
           const message: MqttMessage = {
             id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
             topic,
@@ -133,7 +154,33 @@ export class MqttService extends EventEmitter {
           };
 
           this.emit('message', message);
-        });
+        };
+
+        const onOffline = () => {
+          console.log('MQTT client offline');
+          if (!this.isManualDisconnect) {
+            this.status = 'disconnected';
+            this.emit('status', this.status);
+          }
+        };
+
+        // Attach event handlers
+        this.client.on('connect', onConnect);
+        this.client.on('error', onError);
+        this.client.on('reconnect', onReconnect);
+        this.client.on('close', onClose);
+        this.client.on('message', onMessage);
+        this.client.on('offline', onOffline);
+
+        // Store handlers for cleanup
+        (this.client as any)._customHandlers = {
+          onConnect,
+          onError,
+          onReconnect,
+          onClose,
+          onMessage,
+          onOffline,
+        };
 
       } catch (error) {
         this.status = 'error';
@@ -155,12 +202,29 @@ export class MqttService extends EventEmitter {
         return;
       }
 
+      this.isManualDisconnect = true;
+
+      // Remove all event listeners before disconnecting
+      const handlers = (this.client as any)._customHandlers;
+      if (handlers) {
+        this.client.removeListener('connect', handlers.onConnect);
+        this.client.removeListener('error', handlers.onError);
+        this.client.removeListener('reconnect', handlers.onReconnect);
+        this.client.removeListener('close', handlers.onClose);
+        this.client.removeListener('message', handlers.onMessage);
+        this.client.removeListener('offline', handlers.onOffline);
+      } else {
+        // Fallback: remove all listeners
+        this.client.removeAllListeners();
+      }
+
       this.client.end(false, {}, () => {
         console.log('MQTT disconnected');
         this.client = null;
         this.status = 'disconnected';
         this.subscriptions.clear();
         this.emit('status', this.status);
+        this.isManualDisconnect = false;
         resolve();
       });
     });
