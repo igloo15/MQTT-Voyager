@@ -155,64 +155,66 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
           loading={loading}
           dataSource={connections}
           renderItem={(conn) => (
-            <List.Item
-              key={conn.id}
-              actions={[
-                <Tooltip title="Connect" key="connect">
-                  <Button
-                    type="text"
-                    icon={<LinkOutlined />}
-                    onClick={() => handleConnect(conn.id!)}
-                  />
-                </Tooltip>,
-                <Tooltip title="Edit" key="edit">
-                  <Button
-                    type="text"
-                    icon={<EditOutlined />}
-                    onClick={() => handleEdit(conn.id!)}
-                  />
-                </Tooltip>,
-                <Popconfirm
-                  key="delete"
-                  title={`Delete "${conn.name}"?`}
-                  description="This action cannot be undone"
-                  onConfirm={() => handleDelete(conn.id!, conn.name)}
-                  okText="Delete"
-                  cancelText="Cancel"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Tooltip title="Delete">
-                    <Button type="text" danger icon={<DeleteOutlined />} />
-                  </Tooltip>
-                </Popconfirm>,
-              ]}
-            >
-              <List.Item.Meta
-                avatar={<ApiOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
-                title={
-                  <Space>
-                    {conn.name}
-                    <Tag color={getProtocolColor(conn.protocol)} icon={getProtocolIcon(conn.protocol)}>
-                      {conn.protocol.toUpperCase()}
-                    </Tag>
-                    {conn.username && (
-                      <Tag icon={<SafetyOutlined />} color="orange">
-                        Auth
+            <List.Item key={conn.id} style={{ padding: '12px 0' }}>
+              <div style={{ display: 'flex', width: '100%', alignItems: 'flex-start', gap: '12px' }}>
+                <ApiOutlined style={{ fontSize: '20px', color: '#1890ff', marginTop: '4px' }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 500, marginBottom: '4px', wordBreak: 'break-word' }}>
+                      {conn.name}
+                    </div>
+                    <Space size="small" wrap>
+                      <Tag color={getProtocolColor(conn.protocol)} icon={getProtocolIcon(conn.protocol)}>
+                        {conn.protocol.toUpperCase()}
                       </Tag>
-                    )}
+                      {conn.username && (
+                        <Tag icon={<SafetyOutlined />} color="orange">
+                          Auth
+                        </Tag>
+                      )}
+                    </Space>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                    {`${conn.host}:${conn.port}`}
+                  </div>
+                  {conn.clientId && (
+                    <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                      Client ID: {conn.clientId}
+                    </div>
+                  )}
+                  <Space size="small" style={{ marginTop: '8px' }}>
+                    <Tooltip title="Connect">
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<LinkOutlined />}
+                        onClick={() => handleConnect(conn.id!)}
+                      >
+                        Connect
+                      </Button>
+                    </Tooltip>
+                    <Tooltip title="Edit">
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => handleEdit(conn.id!)}
+                      />
+                    </Tooltip>
+                    <Popconfirm
+                      title={`Delete "${conn.name}"?`}
+                      description="This action cannot be undone"
+                      onConfirm={() => handleDelete(conn.id!, conn.name)}
+                      okText="Delete"
+                      cancelText="Cancel"
+                      okButtonProps={{ danger: true }}
+                    >
+                      <Tooltip title="Delete">
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Tooltip>
+                    </Popconfirm>
                   </Space>
-                }
-                description={
-                  <Space direction="vertical" size={0}>
-                    <span>{`${conn.host}:${conn.port}`}</span>
-                    {conn.clientId && (
-                      <span style={{ fontSize: '12px', color: '#999' }}>
-                        Client ID: {conn.clientId}
-                      </span>
-                    )}
-                  </Space>
-                }
-              />
+                </div>
+              </div>
             </List.Item>
           )}
         />

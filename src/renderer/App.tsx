@@ -1,66 +1,28 @@
-import {
-  Layout,
-  Typography,
-  Button,
-  Space,
-  Card,
-  Input,
-  message,
-  Tag,
-  Tabs,
-  Modal,
-  Row,
-  Col,
-  ConfigProvider,
-  theme as antdTheme,
-  Switch,
-  Tooltip,
-} from 'antd';
-import type { TabsProps } from 'antd';
-import {
-  RocketOutlined,
-  ApiOutlined,
-  DisconnectOutlined,
-  PlusOutlined,
-  DatabaseOutlined,
-  BulbOutlined,
-  BulbFilled,
-  DashboardOutlined,
-  BarChartOutlined,
-  ToolOutlined,
-} from '@ant-design/icons';
+import { Layout, message, ConfigProvider, theme as antdTheme } from 'antd';
 import { useState, useEffect } from 'react';
+import { theme as antdThemeHook } from 'antd';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { ConnectionConfig, ConnectionStatus } from '@shared/types/models';
-import { ConnectionForm } from './components/ConnectionForm';
-import { ConnectionList } from './components/ConnectionList';
-import { TopicTreeViewer } from './components/TopicTreeViewer';
-import { MessageList } from './components/MessageList';
-import { MessagePublisher } from './components/MessagePublisher';
-import { Statistics } from './components/Statistics';
-import { MessageReplay } from './components/MessageReplay';
-import { RetentionPolicy } from './components/RetentionPolicy';
+import { AppHeader } from './components/AppHeader';
+import { ConnectionSidebar } from './components/ConnectionSidebar';
+import { MainContent } from './components/MainContent';
+import { ConnectionModal } from './components/ConnectionModal';
 
-const { Header, Content, Sider } = Layout;
-const { Title, Text } = Typography;
+const { Content } = Layout;
 
-function App() {
+interface AppContentProps {
+  isDarkMode: boolean;
+  setIsDarkMode: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
+  const { token } = antdThemeHook.useToken();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
-  const [testTopic, setTestTopic] = useState<string>('test/mqtt-voyager');
   const [messageCount, setMessageCount] = useState<number>(0);
   const [selectedConnection, setSelectedConnection] = useState<ConnectionConfig | undefined>();
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Load theme preference from localStorage
-    const saved = localStorage.getItem('darkMode');
-    return saved ? JSON.parse(saved) : false;
-  });
-
-  // Persist dark mode preference
-  useEffect(() => {
-    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
-  }, [isDarkMode]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -71,7 +33,7 @@ function App() {
       // Ctrl/Cmd + D: Toggle dark mode
       if (modifier && event.key === 'd') {
         event.preventDefault();
-        setIsDarkMode((prev) => !prev);
+        setIsDarkMode((prev: boolean) => !prev);
         message.success(`${isDarkMode ? 'Light' : 'Dark'} mode enabled`);
       }
 
@@ -120,46 +82,6 @@ function App() {
     };
   }, []);
 
-  const disconnectFromMQTT = async () => {
-    try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_DISCONNECT);
-      setMessageCount(0);
-      message.info('Disconnected from MQTT broker');
-    } catch (error) {
-      message.error('Failed to disconnect: ' + (error as Error).message);
-    }
-  };
-
-  const subscribeToTopic = async () => {
-    try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-        topic: testTopic,
-        qos: 0,
-      });
-      message.success(`Subscribed to ${testTopic}`);
-    } catch (error) {
-      message.error('Failed to subscribe: ' + (error as Error).message);
-    }
-  };
-
-  const publishMessage = async () => {
-    try {
-      const payload = JSON.stringify({
-        message: 'Hello from MQTT Voyager!',
-        timestamp: new Date().toISOString(),
-      });
-
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_PUBLISH, {
-        topic: testTopic,
-        payload,
-        options: { qos: 0, retain: false },
-      });
-      message.success(`Published to ${testTopic}`);
-    } catch (error) {
-      message.error('Failed to publish: ' + (error as Error).message);
-    }
-  };
-
   const handleNewConnection = () => {
     setSelectedConnection(undefined);
     setIsFormModalVisible(true);
@@ -187,19 +109,52 @@ function App() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
-  const getStatusColor = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return 'success';
-      case 'connecting':
-      case 'reconnecting':
-        return 'processing';
-      case 'error':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <AppHeader
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        connectionStatus={connectionStatus}
+        messageCount={messageCount}
+        token={token}
+      />
+
+      <Layout>
+        <ConnectionSidebar
+          collapsed={sidebarCollapsed}
+          onCollapse={setSidebarCollapsed}
+          onNewConnection={handleNewConnection}
+          onEditConnection={handleEditConnection}
+          onConnect={handleConnect}
+          refreshTrigger={refreshTrigger}
+          token={token}
+        />
+
+        <Content style={{ padding: '24px', background: token.colorBgLayout }}>
+          <MainContent connectionStatus={connectionStatus} token={token} />
+        </Content>
+      </Layout>
+
+      <ConnectionModal
+        visible={isFormModalVisible}
+        connection={selectedConnection}
+        onSave={handleFormSave}
+        onCancel={handleFormCancel}
+        onConnect={handleConnect}
+      />
+    </Layout>
+  );
+}
+
+function App() {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
 
   return (
     <ConfigProvider
@@ -207,199 +162,7 @@ function App() {
         algorithm: isDarkMode ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
       }}
     >
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header
-          style={{
-            padding: '0 24px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <RocketOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
-            <Title level={3} style={{ margin: 0 }}>
-              MQTT Voyager
-            </Title>
-          </div>
-          <Space>
-            <Tooltip title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
-              <Button
-                type="text"
-                icon={isDarkMode ? <BulbFilled /> : <BulbOutlined />}
-                onClick={() => setIsDarkMode(!isDarkMode)}
-              />
-            </Tooltip>
-            <Tag color={getStatusColor()}>
-              {connectionStatus.toUpperCase()}
-            </Tag>
-            {messageCount > 0 && <Tag color="blue">Messages: {messageCount}</Tag>}
-            {connectionStatus !== 'disconnected' && (
-              <Button
-                danger
-                size="small"
-                icon={<DisconnectOutlined />}
-                onClick={disconnectFromMQTT}
-              >
-                Disconnect
-              </Button>
-            )}
-          </Space>
-        </Header>
-
-      <Layout>
-        <Sider width={350} style={{ background: '#fff', padding: '16px' }}>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={handleNewConnection}
-              block
-            >
-              New Connection
-            </Button>
-
-            <ConnectionList
-              refreshTrigger={refreshTrigger}
-              onEdit={handleEditConnection}
-              onConnect={handleConnect}
-            />
-          </Space>
-        </Sider>
-
-        <Layout>
-          <Content style={{ padding: '24px', background: '#f0f2f5' }}>
-            <Row gutter={[16, 16]}>
-              <Col span={24}>
-                <Card
-                  title={
-                    <Space>
-                      <RocketOutlined />
-                      Welcome to MQTT Voyager
-                    </Space>
-                  }
-                >
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Text>
-                      Connect to your MQTT broker using the sidebar, or create a new connection
-                      profile to get started.
-                    </Text>
-                    <div>
-                      <Text type="secondary">✅ Phase 1: Foundation</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 2: MQTT Core Service</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 3: Connection Management</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 4: Topic Tree Visualization</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 5: Message Viewer & Publisher</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 6: Search & Filtering</Text>
-                      <br />
-                      <Text type="secondary">✅ Phase 7: Message History & Replay</Text>
-                      <br />
-                      <Text strong style={{ color: '#52c41a' }}>
-                        ✅ Phase 8: Polish & Packaging 🎉
-                      </Text>
-                    </div>
-                  </Space>
-                </Card>
-              </Col>
-
-              {connectionStatus === 'connected' && (
-                <Col span={24}>
-                  <Tabs
-                    defaultActiveKey="dashboard"
-                    type="card"
-                    size="large"
-                    items={[
-                      {
-                        key: 'dashboard',
-                        label: (
-                          <span>
-                            <DashboardOutlined />
-                            Dashboard
-                          </span>
-                        ),
-                        children: (
-                          <Row gutter={[16, 16]}>
-                            <Col span={10}>
-                              <TopicTreeViewer />
-                            </Col>
-                            <Col span={14}>
-                              <Row gutter={[16, 16]}>
-                                <Col span={24}>
-                                  <MessagePublisher />
-                                </Col>
-                                <Col span={24}>
-                                  <MessageList maxMessages={200} />
-                                </Col>
-                              </Row>
-                            </Col>
-                          </Row>
-                        ),
-                      },
-                      {
-                        key: 'analytics',
-                        label: (
-                          <span>
-                            <BarChartOutlined />
-                            Analytics
-                          </span>
-                        ),
-                        children: (
-                          <Row gutter={[16, 16]}>
-                            <Col span={24}>
-                              <Statistics />
-                            </Col>
-                          </Row>
-                        ),
-                      },
-                      {
-                        key: 'tools',
-                        label: (
-                          <span>
-                            <ToolOutlined />
-                            Tools
-                          </span>
-                        ),
-                        children: (
-                          <Row gutter={[16, 16]}>
-                            <Col span={24}>
-                              <MessageReplay />
-                            </Col>
-                            <Col span={24}>
-                              <RetentionPolicy />
-                            </Col>
-                          </Row>
-                        ),
-                      },
-                    ]}
-                  />
-                </Col>
-              )}
-            </Row>
-          </Content>
-        </Layout>
-      </Layout>
-
-      <Modal
-        title={selectedConnection ? 'Edit Connection' : 'New Connection'}
-        open={isFormModalVisible}
-        onCancel={handleFormCancel}
-        footer={null}
-        width={700}
-        destroyOnClose
-      >
-        <ConnectionForm
-          connection={selectedConnection}
-          onSave={handleFormSave}
-          onCancel={handleFormCancel}
-          onConnect={handleConnect}
-        />
-      </Modal>
+      <AppContent isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
     </ConfigProvider>
   );
 }
