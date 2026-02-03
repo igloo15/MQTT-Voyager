@@ -10,6 +10,8 @@ import {
   Button,
   Tooltip,
   Empty,
+  Modal,
+  message as antMessage,
 } from 'antd';
 import {
   BarChartOutlined,
@@ -18,6 +20,7 @@ import {
   ThunderboltOutlined,
   FolderOutlined,
   ReloadOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import type { Statistics as StatsType } from '@shared/types/models';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
@@ -40,6 +43,26 @@ export const Statistics: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetStatistics = () => {
+    Modal.confirm({
+      title: 'Reset Analytics',
+      content: 'Are you sure you want to reset all analytics? This action cannot be undone.',
+      okText: 'Reset',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_RESET_STATS);
+          antMessage.success('Analytics reset successfully');
+          loadStatistics();
+        } catch (error: any) {
+          antMessage.error(`Failed to reset analytics: ${error.message}`);
+          console.error('Failed to reset statistics:', error);
+        }
+      },
+    });
   };
 
   const formatBytes = (bytes: number): string => {
@@ -85,15 +108,26 @@ export const Statistics: React.FC = () => {
           </Space>
         }
         extra={
-          <Tooltip title="Refresh Statistics">
-            <Button
-              type="text"
-              size="small"
-              icon={<ReloadOutlined />}
-              onClick={loadStatistics}
-              loading={loading}
-            />
-          </Tooltip>
+          <Space>
+            <Tooltip title="Reset Analytics">
+              <Button
+                type="text"
+                size="small"
+                icon={<ClearOutlined />}
+                onClick={handleResetStatistics}
+                danger
+              />
+            </Tooltip>
+            <Tooltip title="Refresh Statistics">
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                onClick={loadStatistics}
+                loading={loading}
+              />
+            </Tooltip>
+          </Space>
         }
       >
         <Row gutter={16}>

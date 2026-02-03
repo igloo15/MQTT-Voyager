@@ -25,6 +25,10 @@ export interface ConnectionConfig {
     cert?: string;
     key?: string;
   };
+  defaultSubscriptions?: Array<{
+    topic: string;
+    qos: QoS;
+  }>;
 }
 
 // MQTT Quality of Service levels

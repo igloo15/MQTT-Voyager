@@ -302,6 +302,13 @@ export class MqttService extends EventEmitter {
   }
 
   /**
+   * Get current connection ID
+   */
+  getCurrentConnectionId(): string | undefined {
+    return this.config?.id;
+  }
+
+  /**
    * Get all active subscriptions
    */
   getSubscriptions(): Subscription[] {

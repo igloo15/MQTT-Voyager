@@ -23,8 +23,10 @@ import {
   PlusOutlined,
   MinusOutlined,
   ApiOutlined,
+  FilterOutlined,
 } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { formatDistanceToNow } from 'date-fns';
 
 const { Search } = Input;
 
@@ -73,6 +75,22 @@ export const TopicTreeViewer: React.FC = () => {
       const hasChildren = node.children && node.children.length > 0;
       const hasMessages = node.messageCount > 0;
 
+      // Format last message preview
+      let lastMessagePreview = '';
+      let lastMessageTime = '';
+      if (node.lastMessage) {
+        const payload =
+          typeof node.lastMessage.payload === 'string'
+            ? node.lastMessage.payload
+            : node.lastMessage.payload.toString();
+        lastMessagePreview = payload.length > 50 ? payload.substring(0, 50) + '...' : payload;
+
+        // Format timestamp
+        if (node.lastMessage.timestamp) {
+          lastMessageTime = formatDistanceToNow(new Date(node.lastMessage.timestamp), { addSuffix: true });
+        }
+      }
+
       return {
         title: (
           <Dropdown
@@ -82,8 +100,8 @@ export const TopicTreeViewer: React.FC = () => {
             }}
             trigger={['contextMenu']}
           >
-            <span style={{ display: 'inline-block', width: '100%' }}>
-              <Space size="small">
+            <div style={{ display: 'inline-block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontWeight: node.subscribed ? 'bold' : 'normal' }}>
                   {node.name}
                 </span>
@@ -98,8 +116,35 @@ export const TopicTreeViewer: React.FC = () => {
                     <ApiOutlined style={{ color: '#52c41a', fontSize: '12px' }} />
                   </Tooltip>
                 )}
-              </Space>
-            </span>
+              </div>
+              {node.lastMessage && (
+                <div style={{ marginTop: '2px' }}>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#999',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {lastMessagePreview}
+                  </div>
+                  {lastMessageTime && (
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        color: '#aaa',
+                        marginTop: '1px',
+                      }}
+                    >
+                      {lastMessageTime}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </Dropdown>
         ),
         key: node.fullPath,
@@ -149,6 +194,11 @@ export const TopicTreeViewer: React.FC = () => {
         type: 'divider',
       },
       {
+        key: 'filter-messages',
+        label: 'Filter Messages to Topic',
+        icon: <FilterOutlined />,
+      },
+      {
         key: 'copy-topic',
         label: 'Copy Topic Path',
       }
@@ -196,6 +246,11 @@ export const TopicTreeViewer: React.FC = () => {
             qos: 0,
           });
           antMessage.success(`Subscribed to ${node.fullPath}/#`);
+          break;
+
+        case 'filter-messages':
+          window.electronAPI.send(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, node.fullPath);
+          antMessage.success(`Filtering messages to topic: ${node.fullPath}`);
           break;
 
         case 'copy-topic':

@@ -30,7 +30,7 @@ export const ConnectionSidebar: React.FC<ConnectionSidebarProps> = ({
       collapsed={collapsed}
       onCollapse={onCollapse}
       width={350}
-      collapsedWidth={80}
+      collapsedWidth={35}
       style={{ background: token.colorBgContainer }}
     >
       {!collapsed && (

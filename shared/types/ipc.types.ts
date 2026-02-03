@@ -40,10 +40,14 @@ export const IPC_CHANNELS = {
   MESSAGE_CLEAR: 'message:clear',
   MESSAGE_EXPORT: 'message:export',
   MESSAGE_GET_STATS: 'message:get-stats',
+  MESSAGE_RESET_STATS: 'message:reset-stats',
 
   // Topic Tree
   TOPIC_TREE_GET: 'topic-tree:get',
   TOPIC_TREE_UPDATED: 'topic-tree:updated',
+
+  // Message Filtering (events)
+  MESSAGE_FILTER_TOPIC: 'message:filter-topic',
 } as const;
 
 // Type-safe IPC request/response types

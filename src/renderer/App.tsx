@@ -110,7 +110,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
   };
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppHeader
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
@@ -119,7 +119,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
         token={token}
       />
 
-      <Layout>
+      <Layout style={{ flex: 1, overflow: 'hidden' }}>
         <ConnectionSidebar
           collapsed={sidebarCollapsed}
           onCollapse={setSidebarCollapsed}
@@ -130,7 +130,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
           token={token}
         />
 
-        <Content style={{ padding: '24px', background: token.colorBgLayout }}>
+        <Content style={{ padding: '24px', background: token.colorBgLayout, overflow: 'auto' }}>
           <MainContent connectionStatus={connectionStatus} token={token} />
         </Content>
       </Layout>

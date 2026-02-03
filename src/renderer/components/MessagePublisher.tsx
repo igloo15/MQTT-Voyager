@@ -10,7 +10,7 @@ import {
   message as antMessage,
   Tabs,
 } from 'antd';
-import { SendOutlined, ClearOutlined } from '@ant-design/icons';
+import { SendOutlined, ClearOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { QoS } from '@shared/types/models';
 
@@ -21,6 +21,7 @@ export const MessagePublisher: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [payloadType, setPayloadType] = useState<'text' | 'json'>('text');
+  const [collapsed, setCollapsed] = useState(false);
 
   const handlePublish = async (values: any) => {
     setLoading(true);
@@ -105,27 +106,38 @@ export const MessagePublisher: React.FC = () => {
         </Space>
       }
       extra={
-        <Button
-          size="small"
-          icon={<ClearOutlined />}
-          onClick={handleClear}
-        >
-          Clear
-        </Button>
+        <Space>
+          {!collapsed && (
+            <Button
+              size="small"
+              icon={<ClearOutlined />}
+              onClick={handleClear}
+            >
+              Clear
+            </Button>
+          )}
+          <Button
+            size="small"
+            type="text"
+            icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+            onClick={() => setCollapsed(!collapsed)}
+          />
+        </Space>
       }
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handlePublish}
-        initialValues={{
-          topic: '',
-          payload: '',
-          qos: 0,
-          retain: false,
-          clearAfterPublish: false,
-        }}
-      >
+      {!collapsed && (
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handlePublish}
+          initialValues={{
+            topic: '',
+            payload: '',
+            qos: 0,
+            retain: false,
+            clearAfterPublish: false,
+          }}
+        >
         <Form.Item
           label="Topic"
           name="topic"
@@ -212,7 +224,8 @@ export const MessagePublisher: React.FC = () => {
             Publish Message
           </Button>
         </Form.Item>
-      </Form>
+        </Form>
+      )}
     </Card>
   );
 };

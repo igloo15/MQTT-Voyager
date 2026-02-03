@@ -9,6 +9,7 @@ import type {
   PublishOptions,
   QoS,
   MessageFilter,
+  MqttMessage,
 } from '../shared/types/models';
 
 // Webpack constants provided by electron-forge
@@ -37,6 +38,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       nodeIntegration: false,
@@ -118,11 +120,32 @@ const registerIpcHandlers = () => {
   // MQTT Connect
   ipcMain.handle(IPC_CHANNELS.MQTT_CONNECT, async (_event, config: ConnectionConfig) => {
     try {
+      // Clear topic tree before connecting to new broker
+      topicTree.clear();
+
       await mqttService.connect(config);
+
+      // Notify renderer that topic tree was cleared
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+      }
 
       // Save as last used connection if it has an ID
       if (config.id) {
         connectionStore.setLastUsedConnection(config.id);
+      }
+
+      // Auto-subscribe to default subscriptions
+      if (config.defaultSubscriptions && config.defaultSubscriptions.length > 0) {
+        for (const sub of config.defaultSubscriptions) {
+          try {
+            await mqttService.subscribe(sub.topic, sub.qos);
+            topicTree.markSubscribed(sub.topic, true);
+            console.log(`Auto-subscribed to: ${sub.topic} (QoS ${sub.qos})`);
+          } catch (error) {
+            console.error(`Failed to auto-subscribe to ${sub.topic}:`, error);
+          }
+        }
       }
 
       console.log('Connected to MQTT broker');
@@ -136,6 +159,15 @@ const registerIpcHandlers = () => {
   ipcMain.handle(IPC_CHANNELS.MQTT_DISCONNECT, async () => {
     try {
       await mqttService.disconnect();
+
+      // Clear topic tree on disconnect
+      topicTree.clear();
+
+      // Notify renderer that topic tree was updated (cleared)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+      }
+
       console.log('Disconnected from MQTT broker');
     } catch (error) {
       console.error('Failed to disconnect from MQTT broker:', error);
@@ -177,6 +209,31 @@ const registerIpcHandlers = () => {
       try {
         await mqttService.publish(topic, payload, options);
         console.log(`Published message to topic: ${topic}`);
+
+        // Create a message object for the published message
+        const publishedMessage: MqttMessage = {
+          id: `pub-${Date.now()}-${Math.random()}`,
+          topic,
+          payload: Buffer.from(payload),
+          qos: (options.qos ?? 0) as QoS,
+          retained: options.retain ?? false,
+          timestamp: Date.now(),
+          connectionId: mqttService.getCurrentConnectionId(),
+        };
+
+        // Save to message history
+        if (messageHistory) {
+          messageHistory.addMessage(publishedMessage);
+        }
+
+        // Update topic tree
+        topicTree.addMessage(publishedMessage);
+
+        // Send to renderer to display in live messages
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, publishedMessage);
+          mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+        }
       } catch (error) {
         console.error(`Failed to publish to topic ${topic}:`, error);
         throw error;
@@ -221,6 +278,17 @@ const registerIpcHandlers = () => {
       return null;
     }
     return messageHistory.getStatistics();
+  });
+
+  // Reset statistics (clears all messages)
+  ipcMain.handle(IPC_CHANNELS.MESSAGE_RESET_STATS, async () => {
+    if (messageHistory) {
+      messageHistory.clearAll();
+      topicTree.clear();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+      }
+    }
   });
 
   // Export messages
@@ -348,6 +416,15 @@ const registerIpcHandlers = () => {
     } catch (error) {
       console.error('Failed to get topic tree:', error);
       throw error;
+    }
+  });
+
+  // ===== Message Filtering =====
+
+  // Relay filter topic event from TopicTreeViewer to MessageList
+  ipcMain.on(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, (_event, topic: string) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, topic);
     }
   });
 

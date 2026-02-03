@@ -17,6 +17,9 @@ import {
   LockOutlined,
   SettingOutlined,
   SafetyOutlined,
+  PlusOutlined,
+  MinusCircleOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import type { ConnectionConfig, QoS } from '@shared/types/models';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
@@ -273,6 +276,51 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
               <Switch />
             </Form.Item>
           </Space>
+        </Panel>
+
+        {/* Default Subscriptions */}
+        <Panel header={<><BellOutlined /> Default Subscriptions</>} key="subscriptions">
+          <Form.List name="defaultSubscriptions">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'topic']}
+                      rules={[{ required: true, message: 'Topic required' }]}
+                      style={{ flex: 1, marginBottom: 0 }}
+                    >
+                      <Input placeholder="sensors/#" />
+                    </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'qos']}
+                      initialValue={0}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Select style={{ width: 80 }}>
+                        <Option value={0}>QoS 0</Option>
+                        <Option value={1}>QoS 1</Option>
+                        <Option value={2}>QoS 2</Option>
+                      </Select>
+                    </Form.Item>
+                    <MinusCircleOutlined onClick={() => remove(name)} />
+                  </Space>
+                ))}
+                <Form.Item>
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    block
+                    icon={<PlusOutlined />}
+                  >
+                    Add Subscription
+                  </Button>
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
         </Panel>
 
         {/* TLS/SSL Settings */}

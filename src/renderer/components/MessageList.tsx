@@ -78,6 +78,79 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
   const [isPresetModalVisible, setIsPresetModalVisible] = useState(false);
   const [presetName, setPresetName] = useState('');
 
+  // Helper function to convert MQTT topic pattern to regex
+  const mqttPatternToRegex = (pattern: string): RegExp => {
+    // Check if pattern contains MQTT wildcards
+    const hasMqttWildcards = pattern.includes('+') || pattern.includes('#');
+
+    if (hasMqttWildcards) {
+      // Escape regex special characters except + and #
+      let regexPattern = pattern.replace(/[.?*()[\]{}\\^$|]/g, '\\$&');
+
+      // Convert MQTT wildcards to regex
+      // + matches exactly one level (anything except /)
+      regexPattern = regexPattern.replace(/\+/g, '[^/]+');
+
+      // # matches zero or more levels (must be at end)
+      // sensors/# should match "sensors", "sensors/temp", "sensors/temp/room1"
+      if (regexPattern.endsWith('/#')) {
+        regexPattern = regexPattern.slice(0, -2) + '(/.*)?';
+      } else {
+        regexPattern = regexPattern.replace(/#/g, '.*');
+      }
+
+      // Anchor to match full topic
+      return new RegExp('^' + regexPattern + '$');
+    } else {
+      // No wildcards - treat as literal topic name and escape regex special chars
+      // This handles topics with $ (like $SYS system topics) correctly
+      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // Do prefix match: "sensors" matches "sensors", "sensors/temp", etc.
+      return new RegExp('^' + escaped + '(/.*)?$');
+    }
+  };
+
+  // Helper function to check if a message matches current filters
+  const matchesFilters = (message: MqttMessage): boolean => {
+    // Topic filter (supports MQTT wildcards and regex)
+    if (topicFilter) {
+      const regex = mqttPatternToRegex(topicFilter);
+      if (!regex.test(message.topic)) {
+        return false;
+      }
+    }
+
+    // Payload search
+    if (payloadSearch) {
+      const payload = typeof message.payload === 'string'
+        ? message.payload
+        : message.payload.toString();
+      if (!payload.toLowerCase().includes(payloadSearch.toLowerCase())) {
+        return false;
+      }
+    }
+
+    // QoS filter
+    if (qosFilter !== undefined && message.qos !== qosFilter) {
+      return false;
+    }
+
+    // Retained filter
+    if (retainedFilter !== undefined && message.retained !== retainedFilter) {
+      return false;
+    }
+
+    // Date range filter (for live messages, check against current time)
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const messageTime = message.timestamp;
+      if (messageTime < dateRange[0].valueOf() || messageTime > dateRange[1].valueOf()) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   // Live message stream
   useEffect(() => {
     const removeListener = window.electronAPI.on(
@@ -94,6 +167,21 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
       removeListener();
     };
   }, [maxMessages]);
+
+  // Listen for filter topic events from TopicTreeViewer
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.MESSAGE_FILTER_TOPIC,
+      (topic: string) => {
+        setTopicFilter(topic);
+        setIsSearchMode(false);
+      }
+    );
+
+    return () => {
+      removeListener();
+    };
+  }, []);
 
   // Load filter presets from localStorage
   useEffect(() => {
@@ -285,7 +373,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
   ];
 
   // Display messages (either live or search results)
-  const displayMessages = isSearchMode ? searchResults : liveMessages;
+  const displayMessages = isSearchMode ? searchResults : liveMessages.filter(matchesFilters);
   const hasActiveFilters =
     topicFilter || payloadSearch || qosFilter !== undefined || retainedFilter !== undefined || dateRange;
 
