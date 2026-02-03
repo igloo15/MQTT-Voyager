@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   List,
   Card,
@@ -55,12 +55,10 @@ interface FilterPreset {
 }
 
 export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) => {
-  // Real-time messages (from live stream)
-  const [liveMessages, setLiveMessages] = useState<MqttMessage[]>([]);
-
-  // Database search results
-  const [searchResults, setSearchResults] = useState<MqttMessage[]>([]);
-  const [isSearchMode, setIsSearchMode] = useState(false);
+  // Database messages (replaces in-memory buffer)
+  const [messages, setMessages] = useState<MqttMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const [selectedMessage, setSelectedMessage] = useState<MqttMessage | null>(null);
   const [isDetailVisible, setIsDetailVisible] = useState(false);
@@ -80,180 +78,12 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
   const [isPresetModalVisible, setIsPresetModalVisible] = useState(false);
   const [presetName, setPresetName] = useState('');
 
-  // Helper function to convert MQTT topic pattern to regex
-  const mqttPatternToRegex = (pattern: string): RegExp => {
-    // Check if pattern contains MQTT wildcards
-    const hasMqttWildcards = pattern.includes('+') || pattern.includes('#');
-
-    if (hasMqttWildcards) {
-      // Escape regex special characters except + and #
-      let regexPattern = pattern.replace(/[.?*()[\]{}\\^$|]/g, '\\$&');
-
-      // Convert MQTT wildcards to regex
-      // + matches exactly one level (anything except /)
-      regexPattern = regexPattern.replace(/\+/g, '[^/]+');
-
-      // # matches zero or more levels (must be at end)
-      // sensors/# should match "sensors", "sensors/temp", "sensors/temp/room1"
-      if (regexPattern.endsWith('/#')) {
-        regexPattern = regexPattern.slice(0, -2) + '(/.*)?';
-      } else {
-        regexPattern = regexPattern.replace(/#/g, '.*');
-      }
-
-      // Anchor to match full topic
-      return new RegExp('^' + regexPattern + '$');
-    } else {
-      // No wildcards - treat as literal topic name and escape regex special chars
-      // This handles topics with $ (like $SYS system topics) correctly
-      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // Do prefix match: "sensors" matches "sensors", "sensors/temp", etc.
-      return new RegExp('^' + escaped + '(/.*)?$');
-    }
-  };
-
-  // Helper function to check if a message matches current filters
-  const matchesFilters = (message: MqttMessage): boolean => {
-    // Topic filter (supports MQTT wildcards and regex)
-    if (topicFilter) {
-      const regex = mqttPatternToRegex(topicFilter);
-      if (!regex.test(message.topic)) {
-        return false;
-      }
-    }
-
-    // Payload search
-    if (payloadSearch) {
-      const payload = typeof message.payload === 'string'
-        ? message.payload
-        : message.payload.toString();
-      if (!payload.toLowerCase().includes(payloadSearch.toLowerCase())) {
-        return false;
-      }
-    }
-
-    // QoS filter
-    if (qosFilter !== undefined && message.qos !== qosFilter) {
-      return false;
-    }
-
-    // Retained filter
-    if (retainedFilter !== undefined && message.retained !== retainedFilter) {
-      return false;
-    }
-
-    // Date range filter (for live messages, check against current time)
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      const messageTime = message.timestamp;
-      if (messageTime < dateRange[0].valueOf() || messageTime > dateRange[1].valueOf()) {
-        return false;
-      }
-    }
-
-    // User property key filter
-    if (userPropertyKey) {
-      if (!message.userProperties) {
-        return false; // No user properties, so can't match
-      }
-      if (!Object.keys(message.userProperties).some(k =>
-        k.toLowerCase().includes(userPropertyKey.toLowerCase())
-      )) {
-        return false;
-      }
-    }
-
-    // User property value filter
-    if (userPropertyValue) {
-      if (!message.userProperties) {
-        return false; // No user properties, so can't match
-      }
-      const hasMatchingValue = Object.values(message.userProperties).some(v => {
-        const valueStr = Array.isArray(v) ? v.join(' ') : v;
-        return valueStr.toLowerCase().includes(userPropertyValue.toLowerCase());
-      });
-      if (!hasMatchingValue) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  // Calculate buffer size based on active filters
+  // Check if filters are active
   const hasActiveFilters =
     topicFilter || payloadSearch || qosFilter !== undefined || retainedFilter !== undefined || dateRange || userPropertyKey || userPropertyValue;
 
-  // Use larger buffer when filters are active to prevent matching messages from disappearing
-  const bufferSize = hasActiveFilters ? maxMessages * 5 : maxMessages;
-
-  // Live message stream
-  useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MQTT_MESSAGE,
-      (message: MqttMessage) => {
-        setLiveMessages((prev) => {
-          const newMessages = [message, ...prev];
-          return newMessages.slice(0, bufferSize);
-        });
-      }
-    );
-
-    return () => {
-      removeListener();
-    };
-  }, [bufferSize]);
-
-  // Listen for connection changes and clear messages
-  useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, clearing messages for new connection:', connectionId);
-        // Clear local message state
-        setLiveMessages([]);
-        setSearchResults([]);
-        setIsSearchMode(false);
-      }
-    );
-
-    return () => removeListener();
-  }, []);
-
-  // Listen for filter topic events from TopicTreeViewer
-  useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MESSAGE_FILTER_TOPIC,
-      (topic: string) => {
-        setTopicFilter(topic);
-        setIsSearchMode(false);
-      }
-    );
-
-    return () => {
-      removeListener();
-    };
-  }, []);
-
-  // Load filter presets from localStorage
-  useEffect(() => {
-    const savedPresets = localStorage.getItem('messageFilterPresets');
-    if (savedPresets) {
-      try {
-        setFilterPresets(JSON.parse(savedPresets));
-      } catch (error) {
-        console.error('Failed to load filter presets:', error);
-      }
-    }
-  }, []);
-
-  // Save filter presets to localStorage
-  useEffect(() => {
-    if (filterPresets.length > 0) {
-      localStorage.setItem('messageFilterPresets', JSON.stringify(filterPresets));
-    }
-  }, [filterPresets]);
-
-  const buildFilter = (): MessageFilter => {
+  // Build filter function
+  const buildFilter = useCallback((): MessageFilter => {
     const filter: MessageFilter = {
       limit: filterLimit,
     };
@@ -288,19 +118,96 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     }
 
     return filter;
-  };
+  }, [topicFilter, payloadSearch, qosFilter, retainedFilter, dateRange, filterLimit, userPropertyKey, userPropertyValue]);
 
-  const handleSearch = async () => {
+  // Load messages from database
+  const loadMessages = useCallback(async () => {
+    setIsLoading(true);
     try {
       const filter = buildFilter();
       const results = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_SEARCH, filter);
-      setSearchResults(results);
-      setIsSearchMode(true);
-      antMessage.success(`Found ${results.length} messages`);
+      setMessages(results);
     } catch (error: any) {
-      antMessage.error(`Search failed: ${error.message}`);
-      console.error('Search error:', error);
+      console.error('Failed to load messages:', error);
+      antMessage.error(`Failed to load messages: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
+  }, [buildFilter]);
+
+  // Initial load and load on filter changes
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  // Listen for new messages and refresh if auto-refresh is enabled
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.MQTT_MESSAGE,
+      (message: MqttMessage) => {
+        // Reload messages from database when new message arrives
+        if (autoRefresh) {
+          loadMessages();
+        }
+      }
+    );
+
+    return () => {
+      removeListener();
+    };
+  }, [autoRefresh, loadMessages]);
+
+  // Listen for connection changes and reload messages
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('Connection changed, reloading messages for new connection:', connectionId);
+        // Clear and reload messages
+        setMessages([]);
+        loadMessages();
+      }
+    );
+
+    return () => removeListener();
+  }, [loadMessages]);
+
+  // Listen for filter topic events from TopicTreeViewer
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.MESSAGE_FILTER_TOPIC,
+      (topic: string) => {
+        setTopicFilter(topic);
+      }
+    );
+
+    return () => {
+      removeListener();
+    };
+  }, []);
+
+  // Load filter presets from localStorage
+  useEffect(() => {
+    const savedPresets = localStorage.getItem('messageFilterPresets');
+    if (savedPresets) {
+      try {
+        setFilterPresets(JSON.parse(savedPresets));
+      } catch (error) {
+        console.error('Failed to load filter presets:', error);
+      }
+    }
+  }, []);
+
+  // Save filter presets to localStorage
+  useEffect(() => {
+    if (filterPresets.length > 0) {
+      localStorage.setItem('messageFilterPresets', JSON.stringify(filterPresets));
+    }
+  }, [filterPresets]);
+
+  const handleSearch = async () => {
+    await loadMessages();
+    antMessage.success(`Found ${messages.length} messages`);
   };
 
   const handleClearFilter = () => {
@@ -312,16 +219,13 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     setFilterLimit(200);
     setUserPropertyKey('');
     setUserPropertyValue('');
-    setIsSearchMode(false);
-    setSearchResults([]);
+    // Messages will automatically reload via useEffect
   };
 
   const handleClearAllMessages = async () => {
     try {
       await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_CLEAR);
-      setLiveMessages([]);
-      setSearchResults([]);
-      setIsSearchMode(false);
+      setMessages([]);
       antMessage.success('All messages cleared');
     } catch (error: any) {
       antMessage.error(`Failed to clear messages: ${error.message}`);
@@ -435,31 +339,36 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     },
   ];
 
-  // Display messages (either live or search results)
-  const displayMessages = isSearchMode ? searchResults : liveMessages.filter(matchesFilters);
-
   return (
     <>
       <Card
         title={
           <Space>
             <MessageOutlined />
-            {isSearchMode ? 'Search Results' : 'Live Messages'}
-            <Badge count={displayMessages.length} showZero style={{ backgroundColor: '#52c41a' }} />
+            Messages
+            <Badge count={messages.length} showZero style={{ backgroundColor: '#52c41a' }} />
+            {hasActiveFilters && <Badge status="processing" text="Filtered" />}
           </Space>
         }
         extra={
           <Space>
-            {isSearchMode && (
-              <Tooltip title="Show Live Messages">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => setIsSearchMode(false)}
-                />
-              </Tooltip>
-            )}
+            <Tooltip title={autoRefresh ? 'Auto-refresh enabled' : 'Auto-refresh disabled'}>
+              <Checkbox
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+              >
+                Auto-refresh
+              </Checkbox>
+            </Tooltip>
+            <Tooltip title="Refresh Messages">
+              <Button
+                type="text"
+                size="small"
+                icon={<ReloadOutlined />}
+                loading={isLoading}
+                onClick={loadMessages}
+              />
+            </Tooltip>
             <Tooltip title="Clear All Messages">
               <Button
                 type="text"
@@ -634,11 +543,11 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
           </Collapse>
 
           {/* Message List */}
-          {displayMessages.length === 0 ? (
+          {messages.length === 0 ? (
             <Empty
               description={
-                isSearchMode
-                  ? 'No messages match your search criteria'
+                hasActiveFilters
+                  ? 'No messages match your filter criteria'
                   : 'No messages received yet'
               }
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -646,7 +555,8 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
             />
           ) : (
             <List
-              dataSource={displayMessages}
+              dataSource={messages}
+              loading={isLoading}
               style={{ maxHeight: '400px', overflow: 'auto' }}
               renderItem={(message) => (
                 <List.Item
