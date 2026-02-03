@@ -26,5 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Remove all listeners for a channel
   removeAllListeners: (channel: string) => {
     ipcRenderer.removeAllListeners(channel);
+  },
+
+  // Expose version information
+  versions: {
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
   }
 });

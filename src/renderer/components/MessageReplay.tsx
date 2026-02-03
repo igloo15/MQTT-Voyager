@@ -208,6 +208,25 @@ export const MessageReplay: React.FC = () => {
     return () => removeListener();
   }, [isRecording, recordingStartTime]);
 
+  // Listen for connection changes and clear replay state
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('Connection changed, clearing replay state:', connectionId);
+        // Stop any active playback
+        if (isPlaying) {
+          stopReplay();
+        }
+        // Clear loaded messages
+        setMessages([]);
+        setRecordedMessages([]);
+      }
+    );
+
+    return () => removeListener();
+  }, [isPlaying]);
+
   const startRecording = () => {
     setRecordedMessages([]);
     setRecordingStartTime(Date.now());

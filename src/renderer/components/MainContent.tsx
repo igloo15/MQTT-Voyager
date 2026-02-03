@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Layout, Card, Space, Typography, Row, Col, Tabs } from 'antd';
 import {
   RocketOutlined,
@@ -6,6 +7,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import type { ConnectionStatus } from '@shared/types/models';
+import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import { TopicTreeViewer } from './TopicTreeViewer';
 import { MessageList } from './MessageList';
 import { MessagePublisher } from './MessagePublisher';
@@ -25,6 +27,25 @@ export const MainContent: React.FC<MainContentProps> = ({
   connectionStatus,
   token,
 }) => {
+  const [currentConnectionId, setCurrentConnectionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('MainContent: Connection changed to:', connectionId);
+        setCurrentConnectionId(connectionId);
+      }
+    );
+
+    // Query current connection on mount
+    window.electronAPI.invoke(IPC_CHANNELS.CONNECTION_GET_CURRENT)
+      .then((id) => setCurrentConnectionId(id))
+      .catch(console.error);
+
+    return () => removeListener();
+  }, []);
+
   return (
     <Content style={{ padding: '1px', background: token.colorBgLayout }}>
       <Row gutter={[16, 16]}>

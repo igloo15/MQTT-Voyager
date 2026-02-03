@@ -91,6 +91,7 @@ export interface MessageFilter {
   retained?: boolean;
   limit?: number;
   offset?: number;
+  connectionId?: string; // Filter by connection
 }
 
 // Statistics

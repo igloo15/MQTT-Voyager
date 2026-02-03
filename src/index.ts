@@ -125,14 +125,15 @@ const registerIpcHandlers = () => {
 
       await mqttService.connect(config);
 
-      // Notify renderer that topic tree was cleared
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
-      }
-
       // Save as last used connection if it has an ID
       if (config.id) {
         connectionStore.setLastUsedConnection(config.id);
+      }
+
+      // Notify renderer of connection change
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.CONNECTION_CHANGED, config.id);
+        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
       }
 
       // Auto-subscribe to default subscriptions
@@ -163,8 +164,9 @@ const registerIpcHandlers = () => {
       // Clear topic tree on disconnect
       topicTree.clear();
 
-      // Notify renderer that topic tree was updated (cleared)
+      // Notify renderer of disconnection and topic tree update
       if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.CONNECTION_CHANGED, null);
         mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
       }
 
@@ -252,7 +254,15 @@ const registerIpcHandlers = () => {
     if (!messageHistory) {
       return [];
     }
-    const messages = messageHistory.searchMessages(filter);
+
+    // Auto-inject current connectionId if not provided
+    const currentConnectionId = mqttService.getCurrentConnectionId();
+    const filterWithConnection: MessageFilter = {
+      ...filter,
+      connectionId: filter.connectionId || currentConnectionId,
+    };
+
+    const messages = messageHistory.searchMessages(filterWithConnection);
     // Convert Buffer payloads to strings for renderer
     return messages.map(msg => ({
       ...msg,
@@ -265,10 +275,13 @@ const registerIpcHandlers = () => {
   // Clear messages
   ipcMain.handle(IPC_CHANNELS.MESSAGE_CLEAR, async () => {
     if (messageHistory) {
-      messageHistory.clearAll();
+      const currentConnectionId = mqttService.getCurrentConnectionId();
+      messageHistory.clearAll(currentConnectionId);
       topicTree.clear();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+      }
     }
-    topicTree.clear();
   });
 
   // Get statistics
@@ -277,13 +290,15 @@ const registerIpcHandlers = () => {
     if (!messageHistory) {
       return null;
     }
-    return messageHistory.getStatistics();
+    const currentConnectionId = mqttService.getCurrentConnectionId();
+    return messageHistory.getStatistics(currentConnectionId);
   });
 
-  // Reset statistics (clears all messages)
+  // Reset statistics (clears current connection's messages)
   ipcMain.handle(IPC_CHANNELS.MESSAGE_RESET_STATS, async () => {
     if (messageHistory) {
-      messageHistory.clearAll();
+      const currentConnectionId = mqttService.getCurrentConnectionId();
+      messageHistory.clearAll(currentConnectionId);
       topicTree.clear();
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
@@ -383,6 +398,11 @@ const registerIpcHandlers = () => {
       console.error('Failed to get last used connection:', error);
       throw error;
     }
+  });
+
+  // Get current connection ID
+  ipcMain.handle(IPC_CHANNELS.CONNECTION_GET_CURRENT, async () => {
+    return mqttService.getCurrentConnectionId() || null;
   });
 
   // Export connections

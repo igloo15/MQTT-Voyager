@@ -51,12 +51,22 @@ export const TopicTreeViewer: React.FC = () => {
     loadTopicTree();
 
     // Listen for topic tree updates
-    const removeListener = window.electronAPI.on(IPC_CHANNELS.TOPIC_TREE_UPDATED, () => {
+    const removeTreeListener = window.electronAPI.on(IPC_CHANNELS.TOPIC_TREE_UPDATED, () => {
       loadTopicTree();
     });
 
+    // Listen for connection changes
+    const removeConnectionListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('Connection changed, topic tree will be cleared:', connectionId);
+        // Tree cleared in main process, just wait for TOPIC_TREE_UPDATED event
+      }
+    );
+
     return () => {
-      removeListener();
+      removeTreeListener();
+      removeConnectionListener();
     };
   }, []);
 

@@ -30,7 +30,21 @@ export const Statistics: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadStatistics();
+    loadStatistics(); // Load on mount
+
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('Connection changed, reloading statistics for:', connectionId);
+        if (connectionId) {
+          loadStatistics(); // Reload stats for new connection
+        } else {
+          setStats(null); // Clear stats when disconnected
+        }
+      }
+    );
+
+    return () => removeListener();
   }, []);
 
   const loadStatistics = async () => {

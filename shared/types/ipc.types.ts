@@ -32,6 +32,7 @@ export const IPC_CHANNELS = {
   CONNECTION_GET: 'connection:get',
   CONNECTION_UPDATE: 'connection:update',
   CONNECTION_GET_LAST_USED: 'connection:get-last-used',
+  CONNECTION_GET_CURRENT: 'connection:get-current',
   CONNECTION_EXPORT: 'connection:export',
   CONNECTION_IMPORT: 'connection:import',
 
@@ -48,6 +49,9 @@ export const IPC_CHANNELS = {
 
   // Message Filtering (events)
   MESSAGE_FILTER_TOPIC: 'message:filter-topic',
+
+  // Connection events
+  CONNECTION_CHANGED: 'connection:changed',
 } as const;
 
 // Type-safe IPC request/response types
@@ -96,6 +100,11 @@ export interface ElectronAPI {
   send: (channel: string, ...args: any[]) => void;
   on: (channel: string, callback: (...args: any[]) => void) => () => void;
   removeAllListeners: (channel: string) => void;
+  versions: {
+    electron: string;
+    chrome: string;
+    node: string;
+  };
 }
 
 // Extend Window interface

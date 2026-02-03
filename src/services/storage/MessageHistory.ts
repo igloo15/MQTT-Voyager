@@ -107,6 +107,12 @@ export class MessageHistory {
     const conditions: string[] = [];
     const params: any[] = [];
 
+    // Connection filter
+    if (filter.connectionId) {
+      conditions.push('connection_id = ?');
+      params.push(filter.connectionId);
+    }
+
     // Topic filter (supports wildcards)
     if (filter.topic) {
       if (filter.topic.includes('+') || filter.topic.includes('#')) {
@@ -199,11 +205,32 @@ export class MessageHistory {
   }
 
   /**
-   * Get recent messages
+   * Get recent messages (optionally for a specific connection)
    */
-  getRecentMessages(limit: number = 100): MqttMessage[] {
+  getRecentMessages(limit: number = 100, connectionId?: string): MqttMessage[] {
     try {
-      const rows = this.selectStmt.all(limit) as any[];
+      let query: string;
+      let params: any[];
+
+      if (connectionId) {
+        query = `
+          SELECT * FROM messages
+          WHERE connection_id = ?
+          ORDER BY timestamp DESC
+          LIMIT ?
+        `;
+        params = [connectionId, limit];
+      } else {
+        query = `
+          SELECT * FROM messages
+          ORDER BY timestamp DESC
+          LIMIT ?
+        `;
+        params = [limit];
+      }
+
+      const stmt = this.db.prepare(query);
+      const rows = stmt.all(...params) as any[];
 
       return rows.map((row) => ({
         id: row.id,
@@ -223,20 +250,26 @@ export class MessageHistory {
   /**
    * Get statistics
    */
-  getStatistics(): Statistics {
+  getStatistics(connectionId?: string): Statistics {
     try {
+      const whereClause = connectionId ? 'WHERE connection_id = ?' : '';
+      const params = connectionId ? [connectionId] : [];
+
       // Total message count
-      const totalResult = this.db.prepare('SELECT COUNT(*) as count FROM messages').get() as any;
+      const totalResult = this.db.prepare(
+        `SELECT COUNT(*) as count FROM messages ${whereClause}`
+      ).get(...params) as any;
       const totalMessages = totalResult.count;
 
       // Messages by topic
       const topicResults = this.db.prepare(`
         SELECT topic, COUNT(*) as count
         FROM messages
+        ${whereClause}
         GROUP BY topic
         ORDER BY count DESC
         LIMIT 10
-      `).all() as any[];
+      `).all(...params) as any[];
 
       const messagesByTopic: Record<string, number> = {};
       topicResults.forEach((row) => {
@@ -244,18 +277,26 @@ export class MessageHistory {
       });
 
       // Unique topic count
-      const topicCountResult = this.db.prepare('SELECT COUNT(DISTINCT topic) as count FROM messages').get() as any;
+      const topicCountResult = this.db.prepare(
+        `SELECT COUNT(DISTINCT topic) as count FROM messages ${whereClause}`
+      ).get(...params) as any;
       const topicCount = topicCountResult.count;
 
       // Messages per second (last minute)
       const oneMinuteAgo = Date.now() - 60000;
+      const recentWhere = connectionId
+        ? 'WHERE connection_id = ? AND timestamp >= ?'
+        : 'WHERE timestamp >= ?';
+      const recentParams = connectionId ? [connectionId, oneMinuteAgo] : [oneMinuteAgo];
       const recentResult = this.db.prepare(
-        'SELECT COUNT(*) as count FROM messages WHERE timestamp >= ?'
-      ).get(oneMinuteAgo) as any;
+        `SELECT COUNT(*) as count FROM messages ${recentWhere}`
+      ).get(...recentParams) as any;
       const messagesPerSecond = recentResult.count / 60;
 
       // Data volume (approximate)
-      const sizeResult = this.db.prepare('SELECT SUM(LENGTH(payload)) as size FROM messages').get() as any;
+      const sizeResult = this.db.prepare(
+        `SELECT SUM(LENGTH(payload)) as size FROM messages ${whereClause}`
+      ).get(...params) as any;
       const dataVolume = sizeResult.size || 0;
 
       return {
@@ -278,12 +319,21 @@ export class MessageHistory {
   }
 
   /**
-   * Clear all messages
+   * Clear all messages (optionally for a specific connection)
    */
-  clearAll(): void {
+  clearAll(connectionId?: string): void {
     try {
-      this.db.exec('DELETE FROM messages');
-      console.log('All messages cleared');
+      if (connectionId) {
+        // Clear only for specific connection
+        const stmt = this.db.prepare('DELETE FROM messages WHERE connection_id = ?');
+        const result = stmt.run(connectionId);
+        console.log(`Cleared ${result.changes} messages for connection ${connectionId}`);
+      } else {
+        // Clear all messages
+        this.db.exec('DELETE FROM messages');
+        this.db.exec('DELETE FROM messages_fts');
+        console.log('All messages cleared');
+      }
     } catch (error) {
       console.error('Failed to clear messages:', error);
     }

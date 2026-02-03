@@ -168,6 +168,22 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     };
   }, [maxMessages]);
 
+  // Listen for connection changes and clear messages
+  useEffect(() => {
+    const removeListener = window.electronAPI.on(
+      IPC_CHANNELS.CONNECTION_CHANGED,
+      (connectionId: string | null) => {
+        console.log('Connection changed, clearing messages for new connection:', connectionId);
+        // Clear local message state
+        setLiveMessages([]);
+        setSearchResults([]);
+        setIsSearchMode(false);
+      }
+    );
+
+    return () => removeListener();
+  }, []);
+
   // Listen for filter topic events from TopicTreeViewer
   useEffect(() => {
     const removeListener = window.electronAPI.on(

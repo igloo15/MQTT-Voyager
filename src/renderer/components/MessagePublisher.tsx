@@ -8,20 +8,20 @@ import {
   Card,
   Space,
   message as antMessage,
-  Tabs,
+  Collapse,
 } from 'antd';
-import { SendOutlined, ClearOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
+import { SendOutlined, ClearOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { QoS } from '@shared/types/models';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { Panel } = Collapse;
 
 export const MessagePublisher: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [payloadType, setPayloadType] = useState<'text' | 'json'>('text');
-  const [collapsed, setCollapsed] = useState(false);
 
   const handlePublish = async (values: any) => {
     setLoading(true);
@@ -98,134 +98,135 @@ export const MessagePublisher: React.FC = () => {
   };
 
   return (
-    <Card
-      title={
-        <Space>
-          <SendOutlined />
-          Publish Message
-        </Space>
-      }
-      extra={
-        <Space>
-          {!collapsed && (
-            <Button
-              size="small"
-              icon={<ClearOutlined />}
-              onClick={handleClear}
-            >
-              Clear
-            </Button>
-          )}
-          <Button
-            size="small"
-            type="text"
-            icon={collapsed ? <DownOutlined /> : <UpOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-          />
-        </Space>
-      }
-    >
-      {!collapsed && (
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handlePublish}
-          initialValues={{
-            topic: '',
-            payload: '',
-            qos: 0,
-            retain: false,
-            clearAfterPublish: false,
-          }}
-        >
-        <Form.Item
-          label="Topic"
-          name="topic"
-          rules={[{ required: true, message: 'Please enter a topic' }]}
-        >
-          <Input placeholder="sensors/temperature" />
-        </Form.Item>
-
-        <Form.Item label="Payload Type">
-          <Space>
-            <Select
-              value={payloadType}
-              onChange={setPayloadType}
-              style={{ width: 120 }}
-            >
-              <Option value="text">Text</Option>
-              <Option value="json">JSON</Option>
-            </Select>
-            {payloadType === 'json' && (
-              <Button size="small" onClick={handleFormatJSON}>
-                Format JSON
+    <Card size='small'>
+      <Collapse
+        defaultActiveKey={['publish']}
+        ghost
+        items={[
+          {
+            key: 'publish',
+            label: (
+              <Space>
+                <SendOutlined />
+                <strong>Publish Message</strong>
+              </Space>
+            ),
+            extra: (
+              <Button
+                size="small"
+                icon={<ClearOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClear();
+                }}
+              >
+                Clear
               </Button>
-            )}
-            <Button size="small" onClick={generateSamplePayload}>
-              Generate Sample
-            </Button>
-          </Space>
-        </Form.Item>
+            ),
+            children: (
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handlePublish}
+                initialValues={{
+                  topic: '',
+                  payload: '',
+                  qos: 0,
+                  retain: false,
+                  clearAfterPublish: false,
+                }}
+              >
+                <Form.Item
+                  label="Topic"
+                  name="topic"
+                  rules={[{ required: true, message: 'Please enter a topic' }]}
+                >
+                  <Input placeholder="sensors/temperature" />
+                </Form.Item>
 
-        <Form.Item
-          label="Payload"
-          name="payload"
-          rules={[{ required: true, message: 'Please enter a payload' }]}
-        >
-          <TextArea
-            rows={8}
-            placeholder={
-              payloadType === 'json'
-                ? '{\n  "key": "value"\n}'
-                : 'Enter your message here...'
-            }
-            style={{ fontFamily: 'monospace' }}
-          />
-        </Form.Item>
+                <Form.Item label="Payload Type">
+                  <Space>
+                    <Select
+                      value={payloadType}
+                      onChange={setPayloadType}
+                      style={{ width: 120 }}
+                    >
+                      <Option value="text">Text</Option>
+                      <Option value="json">JSON</Option>
+                    </Select>
+                    {payloadType === 'json' && (
+                      <Button size="small" onClick={handleFormatJSON}>
+                        Format JSON
+                      </Button>
+                    )}
+                    <Button size="small" onClick={generateSamplePayload}>
+                      Generate Sample
+                    </Button>
+                  </Space>
+                </Form.Item>
 
-        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Space>
-            <Form.Item label="QoS" name="qos" style={{ marginBottom: 0 }}>
-              <Select style={{ width: 100 }}>
-                <Option value={0}>0</Option>
-                <Option value={1}>1</Option>
-                <Option value={2}>2</Option>
-              </Select>
-            </Form.Item>
+                <Form.Item
+                  label="Payload"
+                  name="payload"
+                  rules={[{ required: true, message: 'Please enter a payload' }]}
+                >
+                  <TextArea
+                    rows={8}
+                    placeholder={
+                      payloadType === 'json'
+                        ? '{\n  "key": "value"\n}'
+                        : 'Enter your message here...'
+                    }
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </Form.Item>
 
-            <Form.Item
-              label="Retain"
-              name="retain"
-              valuePropName="checked"
-              style={{ marginBottom: 0 }}
-            >
-              <Switch />
-            </Form.Item>
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Space>
+                    <Form.Item label="QoS" name="qos" style={{ marginBottom: 0 }}>
+                      <Select style={{ width: 100 }}>
+                        <Option value={0}>0</Option>
+                        <Option value={1}>1</Option>
+                        <Option value={2}>2</Option>
+                      </Select>
+                    </Form.Item>
 
-            <Form.Item
-              label="Clear After Publish"
-              name="clearAfterPublish"
-              valuePropName="checked"
-              style={{ marginBottom: 0 }}
-            >
-              <Switch />
-            </Form.Item>
-          </Space>
-        </Space>
+                    <Form.Item
+                      label="Retain"
+                      name="retain"
+                      valuePropName="checked"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Switch />
+                    </Form.Item>
 
-        <Form.Item style={{ marginTop: 16, marginBottom: 0 }}>
-          <Button
-            type="primary"
-            htmlType="submit"
-            icon={<SendOutlined />}
-            loading={loading}
-            block
-          >
-            Publish Message
-          </Button>
-        </Form.Item>
-        </Form>
-      )}
+                    <Form.Item
+                      label="Clear After Publish"
+                      name="clearAfterPublish"
+                      valuePropName="checked"
+                      style={{ marginBottom: 0 }}
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </Space>
+                </Space>
+
+                <Form.Item style={{ marginTop: 16, marginBottom: 0 }}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<SendOutlined />}
+                    loading={loading}
+                    block
+                  >
+                    Publish Message
+                  </Button>
+                </Form.Item>
+              </Form>
+            ),
+          },
+        ]}
+      />
     </Card>
   );
 };
