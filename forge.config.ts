@@ -7,14 +7,18 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import { DependenciesPlugin } from 'electron-forge-plugin-dependencies';
 
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
-    icon: './images/voyager_icon'
+    asar: {
+      unpack: '*.{node,dylib}',
+      unpackDir: '{better-sqlite3}',
+    },
+    icon: './images/voyager_icon',
   },
   rebuildConfig: {
     onlyModules: ['better-sqlite3'],
@@ -22,11 +26,12 @@ const config: ForgeConfig = {
   },
   makers: [
     new MakerSquirrel({}),
-    new MakerZIP({}, ['darwin']),
+    new MakerZIP({}),
     new MakerRpm({}),
     new MakerDeb({}),
   ],
   plugins: [
+    new DependenciesPlugin({}),
     new AutoUnpackNativesPlugin({}),
     new WebpackPlugin({
       mainConfig,
@@ -56,6 +61,7 @@ const config: ForgeConfig = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
+  
 };
 
 export default config;
