@@ -1,7 +1,7 @@
 {
   "name": "mqtt-voyager",
   "productName": "MQTT Voyager",
-  "version": "1.0.0",
+  "version": "0.5.0",
   "description": "MQTT Voyager is an advanced MQTT client for managing and monitoring MQTT topics and messages with ease.",
   "main": ".webpack/main",
   "private": true,

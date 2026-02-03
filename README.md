@@ -1,61 +1,139 @@
 # MQTT Voyager
 
-A desktop application for visualizing and debugging MQTT messages, built with Electron, React, and TypeScript.
+[![CI Build](https://github.com/igloo15/MQTT-Voyager/actions/workflows/ci.yml/badge.svg)](https://github.com/igloo15/MQTT-Voyager/actions/workflows/ci.yml)
+[![Build and Release](https://github.com/igloo15/MQTT-Voyager/actions/workflows/build-release.yml/badge.svg)](https://github.com/igloo15/MQTT-Voyager/actions/workflows/build-release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/igloo15/MQTT-Voyager/releases)
 
-## 🚀 Project Status
+A powerful desktop application for visualizing, debugging, and managing MQTT messages. Built with Electron, React, and TypeScript for a modern, cross-platform experience.
 
-**ALL PHASES COMPLETE!** 🎉✅
+## ✨ Features
 
-- ✅ Phase 1: Foundation (Electron Forge + React + TypeScript + Ant Design)
-- ✅ Phase 2: MQTT Core Service (Connect, subscribe, publish with auto-reconnect)
-- ✅ Phase 3: Connection Management (Save profiles, import/export)
-- ✅ Phase 4: Topic Tree Visualization (Hierarchical tree with search)
-- ✅ Phase 5: Message Viewer & Publisher (Real-time display, syntax highlighting)
-- ✅ Phase 6: Search & Filtering (Full-text search, advanced filters, presets)
-- ✅ Phase 7: Message History & Replay (Statistics, replay, retention policies)
-- ✅ Phase 8: Polish & Packaging (Dark mode, keyboard shortcuts, production-ready)
+### 🔌 Connection Management
+- **Multiple Connection Profiles** - Save and manage unlimited MQTT broker connections
+- **Protocol Support** - MQTT, MQTTS, WebSocket (WS), Secure WebSocket (WSS)
+- **MQTT 5.0 Support** - User properties, enhanced authentication, and protocol features
+- **Secure Connections** - TLS/SSL configuration with custom certificates
+- **Auto-Reconnect** - Resilient connections with exponential backoff
+- **Import/Export** - Share connection profiles across devices
 
-Successfully migrated from Vite to Electron Forge, resolving the Windows module resolution issues.
+### 📊 Message Visualization
+- **Real-Time Stream** - Live message feed with auto-refresh
+- **Topic Tree** - Hierarchical visualization of MQTT topics
+- **Syntax Highlighting** - JSON, XML, and text payload formatting
+- **Multiple Views** - Formatted, raw, and hex payload display
+- **Message Details** - Comprehensive metadata (QoS, retained, timestamp, size)
+- **Dark Mode** - Eye-friendly dark theme with system preference sync
 
-## Tech Stack
+### 🔍 Search & Filtering
+- **Full-Text Search** - Fast SQLite FTS5-powered payload search
+- **Topic Wildcards** - MQTT wildcard support (`+`, `#`)
+- **Advanced Filters** - Filter by QoS, retained flag, time range, user properties
+- **Filter Presets** - Save and load commonly used filter combinations
+- **Database Pagination** - Efficient handling of large message volumes
+- **Export** - Export filtered results to JSON or CSV
 
-- **Framework**: Electron + React 18
-- **Language**: TypeScript
-- **Build Tool**: Electron Forge with Webpack
-- **UI Library**: Ant Design
-- **State Management**: Zustand (ready to use)
-- **MQTT Client**: mqtt.js
-- **Data Storage**: electron-store (profiles) + better-sqlite3 (planned for message history)
+### 📝 Message Publishing
+- **Interactive Publisher** - Easy-to-use message publishing interface
+- **Payload Types** - Support for text and JSON payloads
+- **JSON Validation** - Real-time JSON syntax validation and formatting
+- **QoS Levels** - Select QoS 0, 1, or 2
+- **User Properties** - Add custom MQTT 5.0 user properties
+- **Retain Flag** - Publish retained messages
+- **Sample Generator** - Generate sample payloads quickly
 
-## Project Structure
+### 📈 Analytics & History
+- **Message Statistics** - Real-time stats with message rates and data volume
+- **Topic Distribution** - Visual breakdown of messages per topic
+- **History Replay** - Replay historical messages at custom speeds
+- **Retention Policies** - Automatic cleanup with configurable age and count limits
+- **SQLite Storage** - Efficient message persistence with full-text indexing
 
-```
-mqtt-voyager-forge/
-├── shared/                    # Shared types between main and renderer
-│   └── types/
-│       └── ipc.types.ts      # Type-safe IPC contracts
-├── src/
-│   ├── index.ts              # Electron main process
-│   ├── preload.ts            # IPC bridge (contextBridge)
-│   ├── renderer.tsx          # React entry point
-│   ├── renderer/
-│   │   └── App.tsx          # Main React component
-│   ├── index.html           # HTML template
-│   └── index.css            # Global styles
-├── forge.config.ts          # Electron Forge configuration
-├── webpack.*.config.ts      # Webpack configurations
-└── package.json             # Dependencies and scripts
-```
+### ⚡ Productivity
+- **Keyboard Shortcuts** - Fast navigation and actions
+  - `Ctrl/Cmd + D` - Toggle dark mode
+  - `Ctrl/Cmd + N` - New connection
+  - `Esc` - Close modals
+- **Context Menus** - Right-click actions on topics and messages
+- **Subscription Management** - Subscribe/unsubscribe with wildcard support
+- **Clear Workflow** - Intuitive UI built on Ant Design
 
-## Getting Started
+## 🚀 Quick Start
 
-### Install Dependencies
+### Download
+Download the latest release for your platform from the [Releases](https://github.com/igloo15/MQTT-Voyager/releases) page.
+
+### Build from Source
+
+#### Prerequisites
+- Node.js 20+
+- npm or yarn
+- Git
+
+#### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/igloo15/MQTT-Voyager.git
+cd MQTT-Voyager
+
+# Install dependencies
 npm install
+
+# Start development server
+npm start
 ```
 
-### Development
+#### Build for Production
+
+```bash
+# Build for your current platform
+npm run make
+
+# Output will be in the `out` folder
+```
+
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | Electron 32 + React 18 |
+| **Language** | TypeScript |
+| **Build Tool** | Electron Forge with Webpack |
+| **UI Library** | Ant Design |
+| **MQTT Client** | mqtt.js |
+| **Database** | better-sqlite3 with FTS5 |
+| **State** | React Hooks + Zustand |
+| **Storage** | electron-store |
+
+## 📁 Project Structure
+
+```
+MQTT-Voyager/
+├── .github/
+│   └── workflows/           # CI/CD workflows
+├── shared/
+│   └── types/              # Shared TypeScript types
+│       ├── models.ts       # Data models
+│       └── ipc.types.ts    # IPC contracts
+├── src/
+│   ├── index.ts            # Electron main process
+│   ├── preload.ts          # IPC bridge
+│   ├── renderer.tsx        # React entry point
+│   ├── services/           # Backend services
+│   │   ├── mqtt/           # MQTT service & topic tree
+│   │   └── storage/        # Database & connection storage
+│   └── renderer/
+│       ├── App.tsx         # Main React component
+│       └── components/     # React components
+├── forge.config.ts         # Electron Forge config
+├── webpack.*.config.ts     # Webpack configs
+└── package.json
+```
+
+## 🔧 Development
+
+### Running in Development Mode
 
 ```bash
 npm start
@@ -64,214 +142,18 @@ npm start
 This will:
 - Build the Electron main process
 - Build the preload script
-- Start a Webpack dev server for the React renderer
-- Launch the Electron app with hot reload
+- Start Webpack dev server with hot reload
+- Launch the Electron app
 
-### Build for Production
-
-```bash
-npm run package
-```
-
-Creates distributable packages in the `out` folder.
-
-### Platform-Specific Builds
+### Type Checking
 
 ```bash
-npm run make          # Build for current platform
+npm run lint
 ```
 
-## Features Implemented (Phase 1)
-
-✅ **Project Foundation**
-- Electron main process with window management
-- React UI with Ant Design
-- Type-safe IPC communication
-- Preload script with contextBridge
-- TypeScript configuration
-- ESLint and Prettier setup
-
-✅ **Working IPC Test**
-- Ping/pong handler demonstrating main ↔ renderer communication
-- Click "Test IPC Communication" button to verify it works!
-
-## Features Implemented
-
-### Phase 2: MQTT Core Service ✅
-
-**MqttService** ([src/services/mqtt/MqttService.ts](src/services/mqtt/MqttService.ts))
-- ✅ Connect/disconnect to MQTT brokers
-- ✅ Subscribe/unsubscribe to topics
-- ✅ Publish messages with QoS (0, 1, 2) and retain options
-- ✅ Auto-reconnect with exponential backoff
-- ✅ Event-based message handling
-- ✅ Connection status tracking
-
-**TopicTree** ([src/services/mqtt/TopicTree.ts](src/services/mqtt/TopicTree.ts))
-- ✅ Hierarchical topic organization
-- ✅ Message count tracking
-- ✅ Wildcard subscription support (+, #)
-- ✅ Topic search and traversal
-
-**MessageHistory** ([src/services/storage/MessageHistory.ts](src/services/storage/MessageHistory.ts))
-- ✅ SQLite database schema
-- ✅ Full-text search (FTS5)
-- ✅ Message filtering and queries
-- ✅ Statistics tracking
-- ✅ Export to JSON/CSV
-
-### Phase 3: Connection Management ✅
-
-**ConnectionStore** ([src/services/storage/ConnectionStore.ts](src/services/storage/ConnectionStore.ts))
-- ✅ Save and load connection profiles with electron-store
-- ✅ CRUD operations for connection profiles
-- ✅ Import/export connection profiles
-- ✅ Last used connection tracking
-
-**ConnectionForm** ([src/renderer/components/ConnectionForm.tsx](src/renderer/components/ConnectionForm.tsx))
-- ✅ Full connection configuration UI
-- ✅ Support mqtt/mqtts/ws/wss protocols
-- ✅ Username/password authentication
-- ✅ TLS/SSL configuration
-- ✅ Advanced options (clean session, keepalive, will message)
-- ✅ Test connection before saving
-- ✅ Connect directly from form
-
-**ConnectionList** ([src/renderer/components/ConnectionList.tsx](src/renderer/components/ConnectionList.tsx))
-- ✅ Display all saved connection profiles
-- ✅ Connect/edit/delete actions
-- ✅ Visual status indicators
-
-### Phase 4: Topic Tree Visualization ✅
-
-**TopicTreeViewer** ([src/renderer/components/TopicTreeViewer.tsx](src/renderer/components/TopicTreeViewer.tsx))
-- ✅ Hierarchical topic tree display
-- ✅ Message count badges per topic
-- ✅ Last message timestamp
-- ✅ Context menu (subscribe/unsubscribe/copy)
-- ✅ Topic search functionality
-- ✅ Real-time updates
-- ✅ Wildcard subscription support (+, #)
-
-### Phase 5: Message Viewer & Publisher ✅
-
-**MessageList** ([src/renderer/components/MessageList.tsx](src/renderer/components/MessageList.tsx))
-- ✅ Real-time message stream
-- ✅ Database search with advanced filtering
-- ✅ Topic and payload search
-- ✅ QoS and retained message filtering
-- ✅ Time range filtering
-- ✅ Filter presets (save and load)
-- ✅ Export to JSON/CSV
-- ✅ Pagination support
-
-**MessageDetail** ([src/renderer/components/MessageDetail.tsx](src/renderer/components/MessageDetail.tsx))
-- ✅ Comprehensive message metadata display
-- ✅ Auto-detect payload type (JSON/XML/Text/Binary)
-- ✅ Syntax highlighting for JSON/XML
-- ✅ Multiple view modes (Formatted/Raw/Hex)
-- ✅ Copy to clipboard functionality
-
-**MessagePublisher** ([src/renderer/components/MessagePublisher.tsx](src/renderer/components/MessagePublisher.tsx))
-- ✅ Topic input with autocomplete
-- ✅ Payload editor with text/JSON modes
-- ✅ JSON validation and formatting
-- ✅ QoS selection (0, 1, 2)
-- ✅ Retain flag toggle
-- ✅ Sample payload generation
-- ✅ Clear after publish option
-
-### Phase 6: Search & Filtering ✅
-
-- ✅ Topic filter with MQTT wildcard support (+, #)
-- ✅ Full-text payload search using SQLite FTS5
-- ✅ Time range filters with date picker
-- ✅ QoS level filtering
-- ✅ Retained message filtering
-- ✅ Result limit control (50-1000 messages)
-- ✅ Filter presets (save, load, delete)
-- ✅ Database search vs live message toggle
-- ✅ Export filtered results to JSON/CSV
-
-### Phase 7: Message History & Replay ✅
-
-**Statistics** ([src/renderer/components/Statistics.tsx](src/renderer/components/Statistics.tsx))
-- ✅ Real-time statistics dashboard
-- ✅ Total messages and unique topic count
-- ✅ Messages per second (last minute average)
-- ✅ Data volume tracking with formatted display
-- ✅ Top 10 topic distribution with progress bars
-- ✅ Activity summary and storage usage
-- ✅ Refresh statistics on demand
-
-**MessageReplay** ([src/renderer/components/MessageReplay.tsx](src/renderer/components/MessageReplay.tsx))
-- ✅ Load messages from history for replay
-- ✅ Configurable message limit (1-1000)
-- ✅ Preserve original timing or use fixed speed
-- ✅ Adjustable replay speed (0.5x to 10x)
-- ✅ Play, pause, and stop controls
-- ✅ Real-time progress tracking
-- ✅ Automatic stop on completion
-
-**RetentionPolicy** ([src/renderer/components/RetentionPolicy.tsx](src/renderer/components/RetentionPolicy.tsx))
-- ✅ Configurable retention settings (max messages, max age)
-- ✅ Enable/disable automatic cleanup
-- ✅ Manual cleanup by age (1, 7, 30 days)
-- ✅ Clear all messages with confirmation
-- ✅ Current message count display
-- ✅ Settings saved to localStorage
-
-### Phase 8: Polish & Packaging ✅
-
-**Dark Mode** ([src/renderer/App.tsx](src/renderer/App.tsx))
-- ✅ Toggle button in header with bulb icon
-- ✅ Ant Design dark algorithm integration
-- ✅ Theme preference persisted to localStorage
-- ✅ Smooth theme transitions
-- ✅ All components fully compatible
-
-**Keyboard Shortcuts** ([src/renderer/App.tsx](src/renderer/App.tsx))
-- ✅ Ctrl/Cmd + D: Toggle dark mode
-- ✅ Ctrl/Cmd + N: New connection dialog
-- ✅ Escape: Close modals
-- ✅ Platform-aware (Mac/Windows/Linux)
-- ✅ Visual feedback with toast messages
-
-**Error Handling & UX**
-- ✅ Comprehensive error messages throughout
-- ✅ Loading states on all async operations
-- ✅ Confirmation dialogs for destructive actions
-- ✅ Toast notifications for user feedback
-- ✅ Graceful connection error handling
-
-**Production Ready**
-- ✅ Stable MQTT connection management
-- ✅ Efficient SQLite database with FTS5
-- ✅ Memory-safe message handling
-- ✅ Clean disconnection and cleanup
-- ✅ Cross-platform compatible (Windows/Mac/Linux)
-
-## Development Notes
-
-### Key Files
-
-**Main Process** ([src/index.ts](src/index.ts))
-- Electron app initialization
-- Window creation
-- IPC handler registration
-
-**Preload Script** ([src/preload.ts](src/preload.ts))
-- Secure IPC bridge using contextBridge
-- Exposes `window.electronAPI` to renderer
-
-**Renderer** ([src/renderer.tsx](src/renderer.tsx), [src/renderer/App.tsx](src/renderer/App.tsx))
-- React application entry
-- Ant Design UI components
-- IPC communication from renderer side
-
-**IPC Types** ([shared/types/ipc.types.ts](shared/types/ipc.types.ts))
-- Type-safe IPC channel definitions
-- Shared between main and renderer
+### Hot Reload
+- **Renderer changes** - Auto-reload via Webpack HMR
+- **Main/Preload changes** - Type `rs` in terminal to restart
 
 ### Adding New IPC Handlers
 
@@ -279,60 +161,60 @@ npm run make          # Build for current platform
    ```typescript
    export const IPC_CHANNELS = {
      MY_CHANNEL: 'my:channel',
-     // ...
    } as const;
    ```
 
 2. **Register handler** in `src/index.ts`:
    ```typescript
    ipcMain.handle(IPC_CHANNELS.MY_CHANNEL, async (_event, arg) => {
-     // Handle request
      return result;
    });
    ```
 
-3. **Call from renderer** in React components:
+3. **Call from renderer**:
    ```typescript
    const result = await window.electronAPI.invoke(IPC_CHANNELS.MY_CHANNEL, arg);
    ```
 
-### Hot Reload
+## 🧪 Testing
 
-- **Renderer changes**: Auto-reload (Webpack HMR)
-- **Main/Preload changes**: Type `rs` in terminal to restart
+Connect to a public MQTT broker for testing:
+- **Broker**: `test.mosquitto.org`
+- **Port**: `1883` (MQTT) or `8883` (MQTTS)
+- **WebSocket**: `8080` (WS) or `8081` (WSS)
 
-## Troubleshooting
+Or use the [Eclipse Mosquitto](https://test.mosquitto.org/) public broker.
 
-### TypeScript Alias Warnings
+## 📝 Changelog
 
-If you see TypeScript errors about `@shared/*` imports, they're cosmetic. Webpack resolves them correctly. The warning appears during type-checking but doesn't block compilation.
+See [Releases](https://github.com/igloo15/MQTT-Voyager/releases) for version history and changes.
 
-### Module Not Found
+## 🤝 Contributing
 
-If you get module resolution errors:
-1. Stop the dev server
-2. Delete `node_modules` and `package-lock.json`
-3. Run `npm install`
-4. Run `npm start`
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes:
 
-### better-sqlite3 Native Module Issue
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-**Known Issue**: The `better-sqlite3` package requires native node modules which need special handling in Electron Forge. Currently disabled in the codebase.
+## 📄 License
 
-**Workaround**: MessageHistory functionality is temporarily commented out. Messages are still tracked in memory via TopicTree, but persistence is disabled.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-**Future Fix**: Will require proper native module configuration in Electron Forge, potentially using `@electron-forge/plugin-auto-unpack-natives` or alternative database solutions like SQLite via better-sqlite3-multiple-ciphers or sql.js.
+## 🙏 Acknowledgments
 
-## Migration History
+- Built with [Electron Forge](https://www.electronforge.io/)
+- UI powered by [Ant Design](https://ant.design/)
+- MQTT client: [MQTT.js](https://github.com/mqttjs/MQTT.js)
+- Database: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
 
-This project was migrated from a Vite-based setup to Electron Forge to resolve Windows-specific module resolution issues with the `electron` package. The original issue: `require('electron')` was resolving to the npm package (which exports the binary path) instead of Electron's built-in API.
+## 📧 Support
 
-**Solution**: Electron Forge properly handles this with its webpack configuration and is the official recommended tooling for Electron apps.
-
-## License
-
-MIT
+- **Issues**: [GitHub Issues](https://github.com/igloo15/MQTT-Voyager/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/igloo15/MQTT-Voyager/discussions)
 
 ---
 
-**Ready to build an amazing MQTT visualization tool!** 🚀
+**Made by igloo15**

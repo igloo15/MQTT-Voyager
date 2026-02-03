@@ -18,7 +18,7 @@ interface AboutModalProps {
 export const AboutModal: React.FC<AboutModalProps> = ({ visible, onClose }) => {
   const appInfo = {
     name: 'MQTT Voyager',
-    version: '1.0.0',
+    version: '0.5.0',
     description: 'An advanced MQTT client for managing and monitoring MQTT topics and messages with ease.',
     author: 'igloo15',
     license: 'MIT',
