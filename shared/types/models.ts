@@ -5,6 +5,7 @@ export interface ConnectionConfig {
   host: string;
   port: number;
   protocol: 'mqtt' | 'mqtts' | 'ws' | 'wss';
+  protocolVersion?: 3 | 4 | 5; // MQTT protocol version (3=3.1, 4=3.1.1, 5=5.0)
   clientId?: string;
   username?: string;
   password?: string;
@@ -34,6 +35,9 @@ export interface ConnectionConfig {
 // MQTT Quality of Service levels
 export type QoS = 0 | 1 | 2;
 
+// MQTT 5.0 User Properties (key-value pairs)
+export type UserProperties = Record<string, string | string[]>;
+
 // MQTT Message
 export interface MqttMessage {
   id: string;
@@ -43,6 +47,7 @@ export interface MqttMessage {
   retained: boolean;
   timestamp: number;
   connectionId?: string;
+  userProperties?: UserProperties;
 }
 
 // Connection Status
@@ -73,6 +78,7 @@ export interface TopicNode {
 export interface PublishOptions {
   qos: QoS;
   retain: boolean;
+  userProperties?: UserProperties;
 }
 
 // Subscription
@@ -92,6 +98,8 @@ export interface MessageFilter {
   limit?: number;
   offset?: number;
   connectionId?: string; // Filter by connection
+  userPropertyKey?: string; // Filter by user property key
+  userPropertyValue?: string; // Filter by user property value
 }
 
 // Statistics

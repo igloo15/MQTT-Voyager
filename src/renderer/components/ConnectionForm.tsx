@@ -246,6 +246,19 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           <Form.Item label="Connect Timeout (ms)" name="connectTimeout">
             <InputNumber min={1000} max={120000} style={{ width: '100%' }} />
           </Form.Item>
+
+          <Form.Item
+            label="MQTT Protocol Version"
+            name="protocolVersion"
+            tooltip="MQTT 5.0 supports user properties and other advanced features"
+            initialValue={5}
+          >
+            <Select>
+              <Option value={5}>5.0 (Recommended)</Option>
+              <Option value={4}>3.1.1</Option>
+              <Option value={3}>3.1</Option>
+            </Select>
+          </Form.Item>
         </Panel>
 
         {/* Last Will and Testament */}

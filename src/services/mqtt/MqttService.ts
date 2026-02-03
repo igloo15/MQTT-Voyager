@@ -50,6 +50,7 @@ export class MqttService extends EventEmitter {
           keepalive: config.keepalive || 60,
           reconnectPeriod: config.reconnectPeriod || 1000,
           connectTimeout: config.connectTimeout || 30000,
+          protocolVersion: config.protocolVersion || 5, // Default to MQTT 5.0
         };
 
         // Will message
@@ -151,6 +152,7 @@ export class MqttService extends EventEmitter {
             retained: packet.retain,
             timestamp: Date.now(),
             connectionId: this.config?.id,
+            userProperties: packet.properties?.userProperties,
           };
 
           this.emit('message', message);
@@ -288,7 +290,16 @@ export class MqttService extends EventEmitter {
         return;
       }
 
-      this.client.publish(topic, payload, options, (error) => {
+      // Build publish options with user properties for MQTT 5.0
+      const publishOptions: mqtt.IClientPublishOptions = {
+        qos: options.qos,
+        retain: options.retain,
+        properties: options.userProperties ? {
+          userProperties: options.userProperties,
+        } : undefined,
+      };
+
+      this.client.publish(topic, payload, publishOptions, (error) => {
         if (error) {
           console.error(`Failed to publish to ${topic}:`, error);
           reject(error);

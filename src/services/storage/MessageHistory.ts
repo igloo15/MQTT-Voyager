@@ -17,8 +17,8 @@ export class MessageHistory {
 
     // Prepare statements for better performance
     this.insertStmt = this.db.prepare(`
-      INSERT INTO messages (id, topic, payload, qos, retained, timestamp, connection_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO messages (id, topic, payload, qos, retained, timestamp, connection_id, user_properties)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.selectStmt = this.db.prepare(`
@@ -51,6 +51,15 @@ export class MessageHistory {
       CREATE INDEX IF NOT EXISTS idx_timestamp ON messages(timestamp);
       CREATE INDEX IF NOT EXISTS idx_connection ON messages(connection_id);
     `);
+
+    // Migration: Add user_properties column if it doesn't exist
+    const columns = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
+    const hasUserProperties = columns.some((col: any) => col.name === 'user_properties');
+
+    if (!hasUserProperties) {
+      console.log('Migrating database: adding user_properties column');
+      this.db.exec('ALTER TABLE messages ADD COLUMN user_properties TEXT');
+    }
 
     // Create FTS5 virtual table for full-text search on payload
     this.db.exec(`
@@ -86,6 +95,10 @@ export class MessageHistory {
         ? message.payload
         : Buffer.from(message.payload);
 
+      const userPropertiesJson = message.userProperties
+        ? JSON.stringify(message.userProperties)
+        : null;
+
       this.insertStmt.run(
         message.id,
         message.topic,
@@ -93,7 +106,8 @@ export class MessageHistory {
         message.qos,
         message.retained ? 1 : 0,
         message.timestamp,
-        message.connectionId || null
+        message.connectionId || null,
+        userPropertiesJson
       );
     } catch (error) {
       console.error('Failed to add message to history:', error);
@@ -151,6 +165,18 @@ export class MessageHistory {
       params.push(filter.retained ? 1 : 0);
     }
 
+    // User property key filter
+    if (filter.userPropertyKey) {
+      conditions.push('user_properties LIKE ?');
+      params.push(`%"${filter.userPropertyKey}"%`);
+    }
+
+    // User property value filter
+    if (filter.userPropertyValue) {
+      conditions.push('user_properties LIKE ?');
+      params.push(`%"${filter.userPropertyValue}"%`);
+    }
+
     // Payload search using FTS
     let query = 'SELECT * FROM messages';
 
@@ -197,6 +223,7 @@ export class MessageHistory {
         retained: row.retained === 1,
         timestamp: row.timestamp,
         connectionId: row.connection_id,
+        userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
       }));
     } catch (error) {
       console.error('Failed to search messages:', error);
@@ -240,6 +267,7 @@ export class MessageHistory {
         retained: row.retained === 1,
         timestamp: row.timestamp,
         connectionId: row.connection_id,
+        userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
       }));
     } catch (error) {
       console.error('Failed to get recent messages:', error);
@@ -366,6 +394,7 @@ export class MessageHistory {
       retained: msg.retained,
       timestamp: msg.timestamp,
       datetime: new Date(msg.timestamp).toISOString(),
+      userProperties: msg.userProperties,
     }));
 
     return JSON.stringify(exportData, null, 2);
@@ -377,7 +406,7 @@ export class MessageHistory {
   exportAsCSV(filter: MessageFilter = {}): string {
     const messages = this.searchMessages(filter);
 
-    const headers = ['ID', 'Topic', 'Payload', 'QoS', 'Retained', 'Timestamp', 'DateTime'];
+    const headers = ['ID', 'Topic', 'Payload', 'QoS', 'Retained', 'Timestamp', 'DateTime', 'UserProperties'];
     const rows = messages.map((msg) => [
       msg.id,
       msg.topic,
@@ -386,6 +415,7 @@ export class MessageHistory {
       msg.retained,
       msg.timestamp,
       new Date(msg.timestamp).toISOString(),
+      msg.userProperties ? JSON.stringify(msg.userProperties).replace(/"/g, '""') : '',
     ]);
 
     const csvContent = [

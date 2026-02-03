@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Descriptions, Tag, Button, Space, message as antMessage, Tabs } from 'antd';
+import { Descriptions, Tag, Button, Space, message as antMessage, Tabs, theme } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -11,6 +11,7 @@ interface MessageDetailProps {
 }
 
 export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
+  const { token } = theme.useToken();
   const [activeTab, setActiveTab] = useState('formatted');
 
   const getPayloadString = (): string => {
@@ -113,19 +114,48 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
         <Descriptions.Item label="Payload Size">
           {new TextEncoder().encode(getPayloadString()).length} bytes
         </Descriptions.Item>
+        {message.userProperties && Object.keys(message.userProperties).length > 0 && (
+          <Descriptions.Item label="User Properties">
+            <div style={{
+              background: token.colorBgContainer,
+              padding: '8px',
+              borderRadius: '4px',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              border: `1px solid ${token.colorBorder}`
+            }}>
+              {Object.entries(message.userProperties).map(([key, value]) => (
+                <div key={key} style={{ marginBottom: '4px' }}>
+                  <strong>{key}:</strong> {Array.isArray(value) ? value.join(', ') : value}
+                </div>
+              ))}
+            </div>
+          </Descriptions.Item>
+        )}
       </Descriptions>
 
       {/* Payload Views */}
       <div>
         <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
           <strong>Payload</strong>
-          <Button
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={() => handleCopy(formattedPayload, 'Payload')}
-          >
-            Copy Payload
-          </Button>
+          <Space>
+            {message.userProperties && Object.keys(message.userProperties).length > 0 && (
+              <Button
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => handleCopy(JSON.stringify(message.userProperties, null, 2), 'User Properties')}
+              >
+                Copy User Properties
+              </Button>
+            )}
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => handleCopy(formattedPayload, 'Payload')}
+            >
+              Copy Payload
+            </Button>
+          </Space>
         </div>
 
         <Tabs

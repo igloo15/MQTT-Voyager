@@ -72,6 +72,8 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
   const [retainedFilter, setRetainedFilter] = useState<boolean | undefined>(undefined);
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [filterLimit, setFilterLimit] = useState(200);
+  const [userPropertyKey, setUserPropertyKey] = useState('');
+  const [userPropertyValue, setUserPropertyValue] = useState('');
 
   // Filter presets
   const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
@@ -148,8 +150,41 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
       }
     }
 
+    // User property key filter
+    if (userPropertyKey) {
+      if (!message.userProperties) {
+        return false; // No user properties, so can't match
+      }
+      if (!Object.keys(message.userProperties).some(k =>
+        k.toLowerCase().includes(userPropertyKey.toLowerCase())
+      )) {
+        return false;
+      }
+    }
+
+    // User property value filter
+    if (userPropertyValue) {
+      if (!message.userProperties) {
+        return false; // No user properties, so can't match
+      }
+      const hasMatchingValue = Object.values(message.userProperties).some(v => {
+        const valueStr = Array.isArray(v) ? v.join(' ') : v;
+        return valueStr.toLowerCase().includes(userPropertyValue.toLowerCase());
+      });
+      if (!hasMatchingValue) {
+        return false;
+      }
+    }
+
     return true;
   };
+
+  // Calculate buffer size based on active filters
+  const hasActiveFilters =
+    topicFilter || payloadSearch || qosFilter !== undefined || retainedFilter !== undefined || dateRange || userPropertyKey || userPropertyValue;
+
+  // Use larger buffer when filters are active to prevent matching messages from disappearing
+  const bufferSize = hasActiveFilters ? maxMessages * 5 : maxMessages;
 
   // Live message stream
   useEffect(() => {
@@ -158,7 +193,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
       (message: MqttMessage) => {
         setLiveMessages((prev) => {
           const newMessages = [message, ...prev];
-          return newMessages.slice(0, maxMessages);
+          return newMessages.slice(0, bufferSize);
         });
       }
     );
@@ -166,7 +201,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     return () => {
       removeListener();
     };
-  }, [maxMessages]);
+  }, [bufferSize]);
 
   // Listen for connection changes and clear messages
   useEffect(() => {
@@ -244,6 +279,14 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
       filter.endTime = dateRange[1].valueOf();
     }
 
+    if (userPropertyKey) {
+      filter.userPropertyKey = userPropertyKey;
+    }
+
+    if (userPropertyValue) {
+      filter.userPropertyValue = userPropertyValue;
+    }
+
     return filter;
   };
 
@@ -267,6 +310,8 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     setRetainedFilter(undefined);
     setDateRange(null);
     setFilterLimit(200);
+    setUserPropertyKey('');
+    setUserPropertyValue('');
     setIsSearchMode(false);
     setSearchResults([]);
   };
@@ -334,6 +379,8 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     setQosFilter(filter.qos);
     setRetainedFilter(filter.retained);
     setFilterLimit(filter.limit || 200);
+    setUserPropertyKey(filter.userPropertyKey || '');
+    setUserPropertyValue(filter.userPropertyValue || '');
 
     if (filter.startTime && filter.endTime) {
       setDateRange([dayjs(filter.startTime), dayjs(filter.endTime)]);
@@ -390,8 +437,6 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
 
   // Display messages (either live or search results)
   const displayMessages = isSearchMode ? searchResults : liveMessages.filter(matchesFilters);
-  const hasActiveFilters =
-    topicFilter || payloadSearch || qosFilter !== undefined || retainedFilter !== undefined || dateRange;
 
   return (
     <>
@@ -465,6 +510,27 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
                       placeholder="Search in payload..."
                       value={payloadSearch}
                       onChange={(e) => setPayloadSearch(e.target.value)}
+                      prefix={<SearchOutlined />}
+                    />
+                  </Col>
+                </Row>
+
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <label>User Property Key</label>
+                    <Input
+                      placeholder="property-name"
+                      value={userPropertyKey}
+                      onChange={(e) => setUserPropertyKey(e.target.value)}
+                      prefix={<SearchOutlined />}
+                    />
+                  </Col>
+                  <Col span={12}>
+                    <label>User Property Value</label>
+                    <Input
+                      placeholder="property-value"
+                      value={userPropertyValue}
+                      onChange={(e) => setUserPropertyValue(e.target.value)}
                       prefix={<SearchOutlined />}
                     />
                   </Col>
@@ -602,6 +668,11 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
                         <span>{message.topic}</span>
                         <Tag color={getQoSColor(message.qos)}>QoS {message.qos}</Tag>
                         {message.retained && <Tag color="orange">Retained</Tag>}
+                        {message.userProperties && Object.keys(message.userProperties).length > 0 && (
+                          <Tag color="purple">
+                            {Object.keys(message.userProperties).length} {Object.keys(message.userProperties).length === 1 ? 'property' : 'properties'}
+                          </Tag>
+                        )}
                       </Space>
                     }
                     description={

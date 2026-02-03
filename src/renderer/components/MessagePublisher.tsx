@@ -10,7 +10,7 @@ import {
   message as antMessage,
   Collapse,
 } from 'antd';
-import { SendOutlined, ClearOutlined } from '@ant-design/icons';
+import { SendOutlined, ClearOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { QoS } from '@shared/types/models';
 
@@ -22,6 +22,7 @@ export const MessagePublisher: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [payloadType, setPayloadType] = useState<'text' | 'json'>('text');
+  const [userProperties, setUserProperties] = useState<Array<{key: string, value: string}>>([]);
 
   const handlePublish = async (values: any) => {
     setLoading(true);
@@ -41,12 +42,21 @@ export const MessagePublisher: React.FC = () => {
         }
       }
 
+      // Build user properties object
+      const userPropsObject: Record<string, string> = {};
+      userProperties.forEach(prop => {
+        if (prop.key.trim()) {
+          userPropsObject[prop.key] = prop.value;
+        }
+      });
+
       await window.electronAPI.invoke(IPC_CHANNELS.MQTT_PUBLISH, {
         topic: values.topic,
         payload,
         options: {
           qos: values.qos,
           retain: values.retain,
+          userProperties: Object.keys(userPropsObject).length > 0 ? userPropsObject : undefined,
         },
       });
 
@@ -55,6 +65,7 @@ export const MessagePublisher: React.FC = () => {
       // Optionally clear payload after publishing
       if (values.clearAfterPublish) {
         form.setFieldValue('payload', '');
+        setUserProperties([]);
       }
     } catch (error: any) {
       antMessage.error(`Failed to publish: ${error.message || 'Unknown error'}`);
@@ -77,6 +88,7 @@ export const MessagePublisher: React.FC = () => {
 
   const handleClear = () => {
     form.resetFields();
+    setUserProperties([]);
   };
 
   const generateSamplePayload = () => {
@@ -100,7 +112,7 @@ export const MessagePublisher: React.FC = () => {
   return (
     <Card size='small'>
       <Collapse
-        defaultActiveKey={['publish']}
+        defaultActiveKey={[]}
         ghost
         items={[
           {
@@ -179,6 +191,51 @@ export const MessagePublisher: React.FC = () => {
                     }
                     style={{ fontFamily: 'monospace' }}
                   />
+                </Form.Item>
+
+                <Form.Item label="User Properties (MQTT 5.0)">
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {userProperties.map((prop, index) => (
+                      <Space key={index} style={{ width: '100%' }}>
+                        <Input
+                          placeholder="Key"
+                          value={prop.key}
+                          onChange={(e) => {
+                            const newProps = [...userProperties];
+                            newProps[index].key = e.target.value;
+                            setUserProperties(newProps);
+                          }}
+                          style={{ width: 200 }}
+                        />
+                        <Input
+                          placeholder="Value"
+                          value={prop.value}
+                          onChange={(e) => {
+                            const newProps = [...userProperties];
+                            newProps[index].value = e.target.value;
+                            setUserProperties(newProps);
+                          }}
+                          style={{ width: 200 }}
+                        />
+                        <Button
+                          type="text"
+                          danger
+                          icon={<MinusCircleOutlined />}
+                          onClick={() => {
+                            setUserProperties(userProperties.filter((_, i) => i !== index));
+                          }}
+                        />
+                      </Space>
+                    ))}
+                    <Button
+                      type="dashed"
+                      icon={<PlusOutlined />}
+                      onClick={() => setUserProperties([...userProperties, { key: '', value: '' }])}
+                      block
+                    >
+                      Add User Property
+                    </Button>
+                  </Space>
                 </Form.Item>
 
                 <Space style={{ width: '100%', justifyContent: 'space-between' }}>

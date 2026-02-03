@@ -214,12 +214,12 @@ export const TopicTreeViewer: React.FC = () => {
       }
     );
 
-    if (node.lastMessage) {
-      items.push({
-        key: 'view-last-message',
-        label: 'View Last Message',
-      });
-    }
+    // if (node.lastMessage) {
+    //   items.push({
+    //     key: 'view-last-message',
+    //     label: 'View Last Message',
+    //   });
+    // }
 
     return items;
   };
