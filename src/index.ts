@@ -121,6 +121,7 @@ const registerIpcHandlers = () => {
   ipcMain.handle(IPC_CHANNELS.MQTT_CONNECT, async (_event, config: ConnectionConfig) => {
     try {
       // Clear topic tree before connecting to new broker
+      // (mqttService.connect handles disconnecting any existing connection internally)
       topicTree.clear();
 
       await mqttService.connect(config);
@@ -163,6 +164,8 @@ const registerIpcHandlers = () => {
 
       // Clear topic tree on disconnect
       topicTree.clear();
+
+      connectionStore.setLastUsedConnection(undefined);
 
       // Notify renderer of disconnection and topic tree update
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -213,6 +216,7 @@ const registerIpcHandlers = () => {
         console.log(`Published message to topic: ${topic}`);
 
         // Create a message object for the published message
+        //TODO: Consider whether published messages should be stored in history
         const publishedMessage: MqttMessage = {
           id: `pub-${Date.now()}-${Math.random()}`,
           topic,
@@ -222,6 +226,10 @@ const registerIpcHandlers = () => {
           timestamp: Date.now(),
           connectionId: mqttService.getCurrentConnectionId(),
         };
+
+        if(options.userProperties) {
+          publishedMessage.userProperties = options.userProperties;
+        }
 
         // Save to message history
         if (messageHistory) {

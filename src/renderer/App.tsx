@@ -23,6 +23,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isDevelopment = process.env.NODE_ENV === 'development';
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -58,14 +59,18 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
     const removeStatusListener = window.electronAPI.on(
       IPC_CHANNELS.MQTT_STATUS,
       (status: ConnectionStatus) => {
-        console.log('Status update:', status);
+        if (isDevelopment) {
+          console.log('Status update:', status);
+        }
         setConnectionStatus(status);
       }
     );
 
     // Listen for incoming messages
     const removeMessageListener = window.electronAPI.on(IPC_CHANNELS.MQTT_MESSAGE, (msg: any) => {
-      console.log('Received message:', msg);
+      if (isDevelopment) {
+        console.log('Received message:', msg);
+      }
       setMessageCount((prev) => prev + 1);
     });
 
@@ -80,7 +85,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
       removeMessageListener();
       removeErrorListener();
     };
-  }, []);
+  }, [isDevelopment]);
 
   const handleNewConnection = () => {
     setSelectedConnection(undefined);

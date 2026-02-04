@@ -5,6 +5,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { MqttMessage } from '@shared/types/models';
 import { format } from 'date-fns';
+import { decodeMsgpack, isMsgpack } from '../utils/msgpackDecoder';
 
 interface MessageDetailProps {
   message: MqttMessage;
@@ -19,7 +20,19 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
     return typeof message.payload === 'string' ? message.payload : String(message.payload);
   };
 
-  const detectPayloadType = (): 'json' | 'xml' | 'text' | 'binary' => {
+  const detectPayloadType = (): 'json' | 'xml' | 'msgpack' | 'text' | 'binary' => {
+    // Check MessagePack first (if payload is not a string, it's binary)
+    if (typeof message.payload !== 'string') {
+      // Convert to Uint8Array if needed
+      const binaryPayload = message.payload instanceof Uint8Array
+        ? message.payload
+        : new Uint8Array(message.payload);
+
+      if (isMsgpack(binaryPayload)) {
+        return 'msgpack';
+      }
+    }
+
     const payload = getPayloadString();
 
     try {
@@ -41,8 +54,22 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
   };
 
   const formatPayload = (): string => {
-    const payload = getPayloadString();
     const type = detectPayloadType();
+
+    if (type === 'msgpack' && typeof message.payload !== 'string') {
+      // Convert to Uint8Array if needed
+      const binaryPayload = message.payload instanceof Uint8Array
+        ? message.payload
+        : new Uint8Array(message.payload);
+
+      const result = decodeMsgpack(binaryPayload);
+      if (result.success && result.formatted) {
+        return result.formatted;
+      }
+      return '[MessagePack decode failed]';
+    }
+
+    const payload = getPayloadString();
 
     if (type === 'json') {
       try {
@@ -167,7 +194,13 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
               label: 'Formatted',
               children: (
                 <SyntaxHighlighter
-                  language={payloadType === 'json' ? 'json' : payloadType === 'xml' ? 'xml' : 'text'}
+                  language={
+                    payloadType === 'json' || payloadType === 'msgpack'
+                      ? 'json'
+                      : payloadType === 'xml'
+                      ? 'xml'
+                      : 'text'
+                  }
                   style={vscDarkPlus}
                   customStyle={{
                     margin: 0,

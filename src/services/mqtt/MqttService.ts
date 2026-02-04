@@ -36,9 +36,11 @@ export class MqttService extends EventEmitter {
    * Connect to MQTT broker
    */
   async connect(config: ConnectionConfig): Promise<void> {
-    // Clean up any existing connection first
+    // Clean up any existing connection first - use force close to prevent reconnection
     if (this.client) {
-      await this.disconnect();
+      await this.disconnect(true);
+      // Small delay to ensure client is fully cleaned up
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     this.config = config;
@@ -204,17 +206,24 @@ export class MqttService extends EventEmitter {
 
   /**
    * Disconnect from MQTT broker
+   * @param force - If true, forces immediate disconnection without waiting for in-flight messages
    */
-  async disconnect(): Promise<void> {
+  async disconnect(force: boolean = false): Promise<void> {
     return new Promise((resolve) => {
       if (!this.client) {
         this.status = 'disconnected';
         this.emit('status', this.status);
+        this.isManualDisconnect = false;
         resolve();
         return;
       }
 
       this.isManualDisconnect = true;
+
+      // Disable automatic reconnection before disconnecting
+      if (force) {
+        (this.client as any).options.reconnectPeriod = 0;
+      }
 
       // Remove all event listeners before disconnecting
       const handlers = (this.client as any)._customHandlers;
@@ -230,8 +239,8 @@ export class MqttService extends EventEmitter {
         this.client.removeAllListeners();
       }
 
-      this.client.end(false, {}, () => {
-        this.log('MQTT disconnected');
+      this.client.end(force, {}, () => {
+        this.log(`MQTT disconnected (force: ${force})`);
         this.client = null;
         this.status = 'disconnected';
         this.subscriptions.clear();

@@ -4,14 +4,17 @@ import {
   RocketOutlined,
   DashboardOutlined,
   BarChartOutlined,
+  LineChartOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
 import type { ConnectionStatus } from '@shared/types/models';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import { TopicTreeViewer } from './TopicTreeViewer';
+import { SubscriptionManager } from './SubscriptionManager';
 import { MessageList } from './MessageList';
 import { MessagePublisher } from './MessagePublisher';
 import { Statistics } from './Statistics';
+import { ChartsTab } from './ChartsTab';
 import { MessageReplay } from './MessageReplay';
 import { RetentionPolicy } from './RetentionPolicy';
 
@@ -67,15 +70,22 @@ export const MainContent: React.FC<MainContentProps> = ({
                   children: (
                     <Row gutter={[16, 16]}>
                       <Col span={10}>
-                        <TopicTreeViewer />
+                        <Row gutter={[16, 16]}>
+                          <Col span={24}>
+                            <TopicTreeViewer />
+                          </Col>
+                          <Col span={24}>
+                            <SubscriptionManager />
+                          </Col>
+                        </Row>
                       </Col>
                       <Col span={14}>
                         <Row gutter={[16, 16]}>
                           <Col span={24}>
-                            <MessagePublisher />
+                            <MessageList maxMessages={200} />
                           </Col>
                           <Col span={24}>
-                            <MessageList maxMessages={200} />
+                            <MessagePublisher />
                           </Col>
                         </Row>
                       </Col>
@@ -94,6 +104,22 @@ export const MainContent: React.FC<MainContentProps> = ({
                     <Row gutter={[16, 16]}>
                       <Col span={24}>
                         <Statistics />
+                      </Col>
+                    </Row>
+                  ),
+                },
+                {
+                  key: 'charts',
+                  label: (
+                    <span>
+                      <LineChartOutlined />
+                      Charts
+                    </span>
+                  ),
+                  children: (
+                    <Row gutter={[16, 16]}>
+                      <Col span={24}>
+                        <ChartsTab />
                       </Col>
                     </Row>
                   ),

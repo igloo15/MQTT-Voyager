@@ -9,7 +9,6 @@ import {
   Space,
   Collapse,
   message,
-  Modal,
 } from 'antd';
 import {
   ApiOutlined,
@@ -47,8 +46,21 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
   useEffect(() => {
     if (connection) {
-      form.setFieldsValue(connection);
+      // Ensure defaultSubscriptions is always an array
+      const formValues = {
+        ...connection,
+        defaultSubscriptions: connection.defaultSubscriptions || [],
+      };
+
+      // Reset form first to clear any previous state, especially for Form.List
+      form.resetFields();
+
+      // Then set the new values
+      form.setFieldsValue(formValues);
       setProtocol(connection.protocol);
+    } else {
+      // If no connection (new form), reset to defaults
+      form.resetFields();
     }
   }, [connection, form]);
 
@@ -60,6 +72,14 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         ...values,
         id: connection?.id,
       };
+
+      // Remove empty will and tls objects before saving
+      if (config.will && !config.will.topic) {
+        delete config.will;
+      }
+      if (config.tls && !config.tls.ca && !config.tls.cert && !config.tls.key) {
+        delete config.tls;
+      }
 
       // Save the connection profile
       const connectionId = await window.electronAPI.invoke(
@@ -85,25 +105,42 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const handleConnect = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
+      await performConnect(values);
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('Please fill in all required fields');
+      } else {
+        console.error('Connection validation error:', error);
+      }
+    }
+  };
 
+  const performConnect = async (values: any) => {
+    setLoading(true);
+    try {
       const config: ConnectionConfig = {
         ...values,
         id: connection?.id,
       };
 
+      // Remove empty will and tls objects
+      if (config.will && !config.will.topic) {
+        delete config.will;
+      }
+      if (config.tls && !config.tls.ca && !config.tls.cert && !config.tls.key) {
+        delete config.tls;
+      }
+
+      // Connect to the broker (main process handles disconnecting existing connection)
       await window.electronAPI.invoke(IPC_CHANNELS.MQTT_CONNECT, config);
       message.success(`Connected to ${values.host}`);
 
+      // Call onConnect callback AFTER successful connection
       if (onConnect) {
         onConnect(config);
       }
     } catch (error: any) {
-      if (error.errorFields) {
-        message.error('Please fill in all required fields');
-      } else {
-        message.error(`Connection failed: ${error.message || 'Unknown error'}`);
-      }
+      message.error(`Connection failed: ${error.message || 'Unknown error'}`);
       console.error('Connection error:', error);
     } finally {
       setLoading(false);
@@ -113,15 +150,38 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   const handleTestConnection = async () => {
     try {
       const values = await form.validateFields();
-      setLoading(true);
+      await performTestConnection(values);
+    } catch (error: any) {
+      if (error.errorFields) {
+        message.error('Please fill in all required fields');
+      } else {
+        console.error('Test connection validation error:', error);
+      }
+    }
+  };
 
+  const performTestConnection = async (values: any) => {
+    setLoading(true);
+    try {
       const config: ConnectionConfig = {
         ...values,
         connectTimeout: 5000, // Short timeout for testing
       };
 
+      // Remove empty will and tls objects
+      if (config.will && !config.will.topic) {
+        delete config.will;
+      }
+      if (config.tls && !config.tls.ca && !config.tls.cert && !config.tls.key) {
+        delete config.tls;
+      }
+
+      // Connect for testing
       await window.electronAPI.invoke(IPC_CHANNELS.MQTT_CONNECT, config);
       message.success('Connection test successful!');
+
+      // Wait a moment to ensure connection is established
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Disconnect after test
       await window.electronAPI.invoke(IPC_CHANNELS.MQTT_DISCONNECT);
@@ -158,6 +218,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
   return (
     <Form
+      key={connection?.id || 'new'}
       form={form}
       layout="vertical"
       onFinish={handleSubmit}
@@ -168,6 +229,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         keepalive: 60,
         reconnectPeriod: 1000,
         connectTimeout: 30000,
+        defaultSubscriptions: [],
       }}
     >
       {/* Basic Settings */}
@@ -185,6 +247,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
           name="protocol"
           rules={[{ required: true }]}
           style={{ minWidth: '120px' }}
+          
         >
           <Select onChange={handleProtocolChange}>
             <Option value="mqtt">MQTT</Option>
@@ -215,7 +278,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
       {/* Authentication */}
       <Collapse ghost>
-        <Panel header={<><LockOutlined /> Authentication</>} key="auth">
+        <Panel header={<><LockOutlined /> Authentication</>} key="auth" forceRender={true}>
           <Form.Item label="Client ID" name="clientId">
             <Input placeholder="Leave empty for auto-generated" />
           </Form.Item>
@@ -230,7 +293,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         </Panel>
 
         {/* Advanced Settings */}
-        <Panel header={<><SettingOutlined /> Advanced Settings</>} key="advanced">
+        <Panel header={<><SettingOutlined /> Advanced Settings</>} key="advanced" forceRender={true}>
           <Form.Item label="Clean Session" name="cleanSession" valuePropName="checked">
             <Switch />
           </Form.Item>
@@ -262,7 +325,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         </Panel>
 
         {/* Last Will and Testament */}
-        <Panel header="Last Will and Testament" key="will">
+        <Panel header="Last Will and Testament" key="will" forceRender={true}>
           <Form.Item label="Topic" name={['will', 'topic']}>
             <Input placeholder="will/topic" />
           </Form.Item>
@@ -292,7 +355,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         </Panel>
 
         {/* Default Subscriptions */}
-        <Panel header={<><BellOutlined /> Default Subscriptions</>} key="subscriptions">
+        <Panel header={<><BellOutlined /> Default Subscriptions</>} key="subscriptions" forceRender={true}>
           <Form.List name="defaultSubscriptions">
             {(fields, { add, remove }) => (
               <>
@@ -338,7 +401,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
         {/* TLS/SSL Settings */}
         {(protocol === 'mqtts' || protocol === 'wss') && (
-          <Panel header={<><SafetyOutlined /> TLS/SSL Settings</>} key="tls">
+          <Panel header={<><SafetyOutlined /> TLS/SSL Settings</>} key="tls" forceRender={true}>
             <Form.Item
               label="Reject Unauthorized"
               name={['tls', 'rejectUnauthorized']}

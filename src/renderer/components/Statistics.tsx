@@ -12,6 +12,8 @@ import {
   Empty,
   Modal,
   message as antMessage,
+  Switch,
+  Select,
 } from 'antd';
 import {
   BarChartOutlined,
@@ -28,6 +30,8 @@ import { IPC_CHANNELS } from '@shared/types/ipc.types';
 export const Statistics: React.FC = () => {
   const [stats, setStats] = useState<StatsType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(5000); // Default 5 seconds
 
   useEffect(() => {
     loadStatistics(); // Load on mount
@@ -46,6 +50,17 @@ export const Statistics: React.FC = () => {
 
     return () => removeListener();
   }, []);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      loadStatistics();
+    }, refreshInterval);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval]);
 
   const loadStatistics = async () => {
     setLoading(true);
@@ -123,6 +138,29 @@ export const Statistics: React.FC = () => {
         }
         extra={
           <Space>
+            <Tooltip title="Auto-refresh">
+              <Space size="small">
+                <Switch
+                  size="small"
+                  checked={autoRefresh}
+                  onChange={setAutoRefresh}
+                />
+                <Select
+                  size="small"
+                  value={refreshInterval}
+                  onChange={setRefreshInterval}
+                  disabled={!autoRefresh}
+                  style={{ width: 100 }}
+                  options={[
+                    { label: '1s', value: 1000 },
+                    { label: '5s', value: 5000 },
+                    { label: '10s', value: 10000 },
+                    { label: '30s', value: 30000 },
+                    { label: '1m', value: 60000 },
+                  ]}
+                />
+              </Space>
+            </Tooltip>
             <Tooltip title="Reset Analytics">
               <Button
                 type="text"
@@ -139,6 +177,7 @@ export const Statistics: React.FC = () => {
                 icon={<ReloadOutlined />}
                 onClick={loadStatistics}
                 loading={loading}
+                disabled={autoRefresh}
               />
             </Tooltip>
           </Space>

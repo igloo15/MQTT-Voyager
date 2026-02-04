@@ -11,13 +11,10 @@ import {
   Tooltip,
   Empty,
   Spin,
-  Tag,
   Divider,
-  Collapse,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import type { MenuProps } from 'antd';
-import type { Subscription } from '@shared/types/models';
 import {
   FolderOutlined,
   FolderOpenOutlined,
@@ -26,15 +23,13 @@ import {
   ReloadOutlined,
   PlusOutlined,
   MinusOutlined,
-  ApiOutlined,
   FilterOutlined,
-  CloseOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import { formatDistanceToNow } from 'date-fns';
 
 const { Search } = Input;
-const { Panel } = Collapse;
 
 interface TopicNodeData {
   name: string;
@@ -51,12 +46,9 @@ export const TopicTreeViewer: React.FC = () => {
   const [searchValue, setSearchValue] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
   const [autoExpandParent, setAutoExpandParent] = useState(true);
-  const [quickSubscribeTopic, setQuickSubscribeTopic] = useState('');
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
   useEffect(() => {
     loadTopicTree();
-    loadSubscriptions();
 
     // Listen for topic tree updates
     const removeTreeListener = window.electronAPI.on(IPC_CHANNELS.TOPIC_TREE_UPDATED, () => {
@@ -69,7 +61,6 @@ export const TopicTreeViewer: React.FC = () => {
       (connectionId: string | null) => {
         console.log('Connection changed, topic tree will be cleared:', connectionId);
         // Tree cleared in main process, just wait for TOPIC_TREE_UPDATED event
-        setSubscriptions([]);
       }
     );
 
@@ -86,15 +77,6 @@ export const TopicTreeViewer: React.FC = () => {
       setTreeData(converted);
     } catch (error) {
       console.error('Failed to load topic tree:', error);
-    }
-  };
-
-  const loadSubscriptions = async () => {
-    try {
-      const subs = await window.electronAPI.invoke(IPC_CHANNELS.MQTT_GET_SUBSCRIPTIONS);
-      setSubscriptions(subs);
-    } catch (error) {
-      console.error('Failed to load subscriptions:', error);
     }
   };
 
@@ -144,6 +126,17 @@ export const TopicTreeViewer: React.FC = () => {
                     <ApiOutlined style={{ color: '#52c41a', fontSize: '12px' }} />
                   </Tooltip>
                 )}
+                {lastMessageTime && (
+                    <div
+                      style={{
+                        fontSize: '10px',
+                        color: '#aaa',
+                        marginTop: '1px',
+                      }}
+                    >
+                      {lastMessageTime}
+                    </div>
+                  )}
               </div>
               {node.lastMessage && (
                 <div style={{ marginTop: '2px' }}>
@@ -159,17 +152,7 @@ export const TopicTreeViewer: React.FC = () => {
                   >
                     {lastMessagePreview}
                   </div>
-                  {lastMessageTime && (
-                    <div
-                      style={{
-                        fontSize: '10px',
-                        color: '#aaa',
-                        marginTop: '1px',
-                      }}
-                    >
-                      {lastMessageTime}
-                    </div>
-                  )}
+                  
                 </div>
               )}
             </div>
@@ -252,14 +235,12 @@ export const TopicTreeViewer: React.FC = () => {
           });
           antMessage.success(`Subscribed to ${node.fullPath}`);
           await loadTopicTree();
-          await loadSubscriptions();
           break;
 
         case 'unsubscribe':
           await window.electronAPI.invoke(IPC_CHANNELS.MQTT_UNSUBSCRIBE, node.fullPath);
           antMessage.success(`Unsubscribed from ${node.fullPath}`);
           await loadTopicTree();
-          await loadSubscriptions();
           break;
 
         case 'subscribe-single':
@@ -268,7 +249,6 @@ export const TopicTreeViewer: React.FC = () => {
             qos: 0,
           });
           antMessage.success(`Subscribed to ${node.fullPath}/+`);
-          await loadSubscriptions();
           break;
 
         case 'subscribe-multi':
@@ -277,7 +257,6 @@ export const TopicTreeViewer: React.FC = () => {
             qos: 0,
           });
           antMessage.success(`Subscribed to ${node.fullPath}/#`);
-          await loadSubscriptions();
           break;
 
         case 'filter-messages':
@@ -371,36 +350,6 @@ export const TopicTreeViewer: React.FC = () => {
     setExpandedKeys([]);
   };
 
-  const handleQuickSubscribe = async () => {
-    if (!quickSubscribeTopic.trim()) {
-      antMessage.warning('Please enter a topic');
-      return;
-    }
-
-    try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-        topic: quickSubscribeTopic,
-        qos: 0,
-      });
-      antMessage.success(`Subscribed to ${quickSubscribeTopic}`);
-      setQuickSubscribeTopic('');
-      await loadTopicTree();
-      await loadSubscriptions();
-    } catch (error: any) {
-      antMessage.error(`Failed to subscribe: ${error.message || 'Unknown error'}`);
-    }
-  };
-
-  const handleUnsubscribeFromList = async (topic: string) => {
-    try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_UNSUBSCRIBE, topic);
-      antMessage.success(`Unsubscribed from ${topic}`);
-      await loadTopicTree();
-      await loadSubscriptions();
-    } catch (error: any) {
-      antMessage.error(`Failed to unsubscribe: ${error.message || 'Unknown error'}`);
-    }
-  };
 
   return (
     <Card
@@ -442,70 +391,6 @@ export const TopicTreeViewer: React.FC = () => {
       styles={{ body: { padding: '12px' } }}
     >
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        {/* Quick Subscribe */}
-        <Space.Compact style={{ width: '100%' }}>
-          <Input
-            placeholder="Topic to subscribe (e.g., sensors/#)"
-            prefix={<ApiOutlined />}
-            value={quickSubscribeTopic}
-            onChange={(e) => setQuickSubscribeTopic(e.target.value)}
-            onPressEnter={handleQuickSubscribe}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleQuickSubscribe}>
-            Subscribe
-          </Button>
-        </Space.Compact>
-
-        {/* Active Subscriptions */}
-        {subscriptions.length > 0 && (
-          <Collapse
-            size="small"
-            items={[
-              {
-                key: 'subscriptions',
-                label: (
-                  <Space>
-                    <ApiOutlined />
-                    <span>Active Subscriptions</span>
-                    <Badge count={subscriptions.length} style={{ backgroundColor: '#52c41a' }} />
-                  </Space>
-                ),
-                children: (
-                  <Space direction="vertical" style={{ width: '100%' }} size="small">
-                    {subscriptions.map((sub) => (
-                      <div
-                        key={sub.topic}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '4px 8px',
-                          background: 'rgba(82, 196, 26, 0.1)',
-                          borderRadius: '4px',
-                        }}
-                      >
-                        <Space>
-                          <Tag color="green">QoS {sub.qos}</Tag>
-                          <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                            {sub.topic}
-                          </span>
-                        </Space>
-                        <Button
-                          type="text"
-                          size="small"
-                          danger
-                          icon={<CloseOutlined />}
-                          onClick={() => handleUnsubscribeFromList(sub.topic)}
-                        />
-                      </div>
-                    ))}
-                  </Space>
-                ),
-              },
-            ]}
-          />
-        )}
-
         {/* Search Topics */}
         <Search
           placeholder="Search topics..."

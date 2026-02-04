@@ -22,20 +22,28 @@ export class ConnectionStore {
   saveConnection(connection: ConnectionConfig): void {
     const connections = this.store.get('connections') as Record<string, ConnectionConfig>;
 
+    // Create a copy to avoid mutating the original
+    const connectionToSave = { ...connection };
+
     // Generate ID if not provided
-    if (!connection.id) {
-      connection.id = this.generateId();
+    if (!connectionToSave.id) {
+      connectionToSave.id = this.generateId();
     }
 
     // Encrypt password if safeStorage is available
-    if (connection.password && safeStorage.isEncryptionAvailable()) {
-      const encryptedPassword = safeStorage.encryptString(connection.password);
-      connection.password = encryptedPassword.toString('base64');
-      connection.passwordEncrypted = true;
+    if (connectionToSave.password && safeStorage.isEncryptionAvailable()) {
+      const encryptedPassword = safeStorage.encryptString(connectionToSave.password);
+      connectionToSave.password = encryptedPassword.toString('base64');
+      connectionToSave.passwordEncrypted = true;
     }
 
-    connections[connection.id] = connection;
+    connections[connectionToSave.id] = connectionToSave;
     this.store.set('connections', connections);
+
+    // Update the original connection's ID if it was generated
+    if (!connection.id) {
+      connection.id = connectionToSave.id;
+    }
   }
 
   /**
@@ -43,18 +51,21 @@ export class ConnectionStore {
    */
   getConnection(id: string): ConnectionConfig | null {
     const connections = this.store.get('connections') as Record<string, ConnectionConfig>;
-    const connection = connections[id];
+    const storedConnection = connections[id];
 
-    if (!connection) {
+    if (!storedConnection) {
       return null;
     }
+
+    // Create a copy to avoid mutating stored data
+    const connection = { ...storedConnection };
 
     // Decrypt password if it was encrypted
     if (connection.passwordEncrypted && connection.password) {
       try {
         const buffer = Buffer.from(connection.password, 'base64');
         connection.password = safeStorage.decryptString(buffer);
-        connection.passwordEncrypted = false; // Remove flag for return value
+        delete connection.passwordEncrypted; // Remove flag for return value
       } catch (error) {
         console.error('Failed to decrypt password:', error);
       }
@@ -90,7 +101,7 @@ export class ConnectionStore {
 
     // Clear last used if it was deleted
     if (this.store.get('lastUsedConnectionId') === id) {
-      this.store.set('lastUsedConnectionId', null);
+      this.store.delete('lastUsedConnectionId');
     }
 
     return true;
@@ -126,8 +137,13 @@ export class ConnectionStore {
   /**
    * Set the last used connection ID
    */
-  setLastUsedConnection(id: string): void {
-    this.store.set('lastUsedConnectionId', id);
+  setLastUsedConnection(id: string | undefined): void {
+    if (id === undefined || id === null) {
+      // Use delete() to clear the value instead of setting to undefined/null
+      this.store.delete('lastUsedConnectionId');
+    } else {
+      this.store.set('lastUsedConnectionId', id);
+    }
   }
 
   /**
@@ -142,7 +158,7 @@ export class ConnectionStore {
    */
   clearAll(): void {
     this.store.set('connections', {});
-    this.store.set('lastUsedConnectionId', null);
+    this.store.delete('lastUsedConnectionId');
   }
 
   /**
