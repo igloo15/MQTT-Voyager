@@ -3,7 +3,7 @@
 [![CI Build](https://github.com/igloo15/MQTT-Voyager/actions/workflows/ci.yml/badge.svg)](https://github.com/igloo15/MQTT-Voyager/actions/workflows/ci.yml)
 [![Build and Release](https://github.com/igloo15/MQTT-Voyager/actions/workflows/build-release.yml/badge.svg)](https://github.com/igloo15/MQTT-Voyager/actions/workflows/build-release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.5.0-blue.svg)](https://github.com/igloo15/MQTT-Voyager/releases)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue.svg)](https://github.com/igloo15/MQTT-Voyager/releases)
 
 A powerful desktop application for visualizing, debugging, and managing MQTT messages. Built with Electron, React, and TypeScript for a modern, cross-platform experience.
 
