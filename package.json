@@ -1,7 +1,7 @@
 {
   "name": "mqtt-voyager",
   "productName": "MQTT Voyager",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "MQTT Voyager is an advanced MQTT client for managing and monitoring MQTT topics and messages with ease.",
   "main": ".webpack/main",
   "private": true,
@@ -10,7 +10,13 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "version": "node scripts/update-version.js",
+    "bump": "node scripts/bump-version.js",
+    "bump:patch": "node scripts/bump-version.js patch",
+    "bump:minor": "node scripts/bump-version.js minor",
+    "bump:major": "node scripts/bump-version.js major",
+    "bump:rc": "node scripts/bump-version.js prerelease"
   },
   "keywords": [],
   "author": {
