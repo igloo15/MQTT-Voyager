@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="MQTT Voyager - A powerful, modern MQTT client for developers. Test, debug, and monitor MQTT messages with ease.">
+    <meta name="keywords" content="MQTT, MQTT client, IoT, messaging, MessagePack, MQTT 5.0, developer tools">
+    <meta name="author" content="MQTT Voyager">
+    <title>MQTT Voyager - Modern MQTT Client for Developers</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="logo">🚀</span>
+                <span class="brand-name">MQTT Voyager</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#screenshots">Screenshots</a>
+                <a href="#download">Download</a>
+                <a href="https://github.com/igloo15/MQTT-Voyager" target="_blank" class="github-link">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title">
+                    Modern MQTT Client<br>
+                    <span class="gradient-text">Built for Developers</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Test, debug, and monitor MQTT messages with a powerful desktop application.
+                    Support for MQTT 5.0, MessagePack, real-time analytics, and more.
+                </p>
+                <div class="hero-buttons">
+                    <a href="#download" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                        </svg>
+                        Download Now
+                    </a>
+                    <a href="https://github.com/igloo15/MQTT-Voyager" target="_blank" class="btn btn-secondary">
+                        View on GitHub
+                    </a>
+                </div>
+                <div class="hero-badges">
+                    <span class="badge">Windows</span>
+                    <span class="badge">macOS</span>
+                    <span class="badge">Linux</span>
+                    <span class="badge badge-highlight">Free & Open Source</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Powerful Features</h2>
+            <p class="section-subtitle">Everything you need to work with MQTT</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🔌</div>
+                    <h3>Connection Management</h3>
+                    <p>Save and manage multiple broker connections. Quick switching between different environments with connection profiles.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real-Time Analytics</h3>
+                    <p>Monitor message rates, data volume, and topic statistics. Auto-refreshing dashboard with live metrics.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Interactive Charts</h3>
+                    <p>Visualize numerical data from message payloads. Real-time line charts with multi-metric support and historical analysis.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Smart Message Filtering</h3>
+                    <p>Advanced search with full-text search, topic wildcards, time ranges, QoS, and user property filters.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Message Replay</h3>
+                    <p>Replay historical messages with configurable timing. Perfect for testing and reproducing scenarios.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📦</div>
+                    <h3>MessagePack Support</h3>
+                    <p>Full support for MessagePack encoding/decoding. Automatic detection and beautiful formatting of binary payloads.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🌳</div>
+                    <h3>Topic Tree Viewer</h3>
+                    <p>Hierarchical visualization of MQTT topics. Expandable tree view with message counts and last activity indicators.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💾</div>
+                    <h3>Message History</h3>
+                    <p>Persistent storage of all messages in SQLite database. Search, filter, and export message history.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📝</div>
+                    <h3>MQTT 5.0 Support</h3>
+                    <p>User properties, enhanced authentication, and request/response patterns. Full support for MQTT 5.0 features.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Modern UI</h3>
+                    <p>Clean, intuitive interface with dark mode support. Built with Ant Design for professional appearance.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📤</div>
+                    <h3>Export & Import</h3>
+                    <p>Export messages to JSON or CSV. Import connection profiles for easy sharing and backup.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>High Performance</h3>
+                    <p>Handles thousands of messages per second. Efficient database storage with indexed queries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Highlights Section -->
+    <section class="highlights">
+        <div class="container">
+            <div class="highlights-grid">
+                <div class="highlight-item">
+                    <div class="highlight-number">5.0</div>
+                    <div class="highlight-label">MQTT Protocol</div>
+                    <p>Full MQTT 5.0 support with backward compatibility</p>
+                </div>
+                <div class="highlight-item">
+                    <div class="highlight-number">∞</div>
+                    <div class="highlight-label">Message Storage</div>
+                    <p>Unlimited message history in local database</p>
+                </div>
+                <div class="highlight-item">
+                    <div class="highlight-number">⚡</div>
+                    <div class="highlight-label">Real-Time</div>
+                    <p>Live updates and instant message delivery</p>
+                </div>
+                <div class="highlight-item">
+                    <div class="highlight-number">🎯</div>
+                    <div class="highlight-label">Developer First</div>
+                    <p>Built by developers, for developers</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Screenshots Section -->
+    <section id="screenshots" class="screenshots">
+        <div class="container">
+            <h2 class="section-title">See It In Action</h2>
+            <p class="section-subtitle">Beautiful interface, powerful features</p>
+
+            <div class="screenshots-grid">
+                <div class="screenshot-card">
+                    <div class="screenshot-placeholder">
+                        <span class="placeholder-icon">🖥️</span>
+                        <p>Dashboard View</p>
+                    </div>
+                    <h4>Real-Time Dashboard</h4>
+                    <p>Monitor your MQTT traffic with live statistics and analytics</p>
+                </div>
+
+                <div class="screenshot-card">
+                    <div class="screenshot-placeholder">
+                        <span class="placeholder-icon">📋</span>
+                        <p>Message List</p>
+                    </div>
+                    <h4>Message Browser</h4>
+                    <p>Browse, search, and filter messages with powerful tools</p>
+                </div>
+
+                <div class="screenshot-card">
+                    <div class="screenshot-placeholder">
+                        <span class="placeholder-icon">📊</span>
+                        <p>Charts & Graphs</p>
+                    </div>
+                    <h4>Data Visualization</h4>
+                    <p>Visualize numeric data from your MQTT messages</p>
+                </div>
+
+                <div class="screenshot-card">
+                    <div class="screenshot-placeholder">
+                        <span class="placeholder-icon">🌳</span>
+                        <p>Topic Tree</p>
+                    </div>
+                    <h4>Topic Explorer</h4>
+                    <p>Navigate your topic hierarchy with ease</p>
+                </div>
+            </div>
+
+            <p class="screenshot-note">💡 Add your own screenshots to <code>docs/images/</code> folder</p>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="download">
+        <div class="container">
+            <h2 class="section-title">Get Started</h2>
+            <p class="section-subtitle">Choose your platform and start exploring</p>
+
+            <div class="download-grid">
+                <div class="download-card">
+                    <div class="platform-icon">🪟</div>
+                    <h3>Windows</h3>
+                    <p>Windows 10/11 (64-bit)</p>
+                    <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest/download/MQTT-Voyager-Setup-Windows.exe" class="btn btn-download">
+                        Download .exe
+                    </a>
+                    <p class="download-alt">
+                        Also available:
+                        <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest">Portable</a>
+                    </p>
+                </div>
+
+                <div class="download-card">
+                    <div class="platform-icon">🍎</div>
+                    <h3>macOS</h3>
+                    <p>macOS 10.15+ (Intel & Apple Silicon)</p>
+                    <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest/download/MQTT-Voyager-macOS.dmg" class="btn btn-download">
+                        Download .dmg
+                    </a>
+                    <p class="download-alt">
+                        Also available:
+                        <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest">.pkg</a>
+                    </p>
+                </div>
+
+                <div class="download-card">
+                    <div class="platform-icon">🐧</div>
+                    <h3>Linux</h3>
+                    <p>Ubuntu/Debian/Fedora/Arch</p>
+                    <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest/download/MQTT-Voyager-Linux.AppImage" class="btn btn-download">
+                        Download AppImage
+                    </a>
+                    <p class="download-alt">
+                        Also available:
+                        <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest">.deb</a>,
+                        <a href="https://github.com/igloo15/MQTT-Voyager/releases/latest">.rpm</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="install-note">
+                <p>
+                    📦 All releases are available on the
+                    <a href="https://github.com/igloo15/MQTT-Voyager/releases" target="_blank">GitHub Releases</a> page
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started Section -->
+    <section class="getting-started">
+        <div class="container">
+            <h2 class="section-title">Quick Start Guide</h2>
+
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Download & Install</h3>
+                    <p>Download the installer for your platform and run it. The app will be ready in seconds.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>Connect to Broker</h3>
+                    <p>Add your MQTT broker connection details. Supports username/password and TLS/SSL.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Subscribe & Publish</h3>
+                    <p>Subscribe to topics to receive messages. Publish messages with JSON, text, or MessagePack payloads.</p>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <h3>Analyze & Monitor</h3>
+                    <p>Use the analytics dashboard, charts, and message history to understand your MQTT traffic.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo">🚀</span>
+                    <span class="brand-name">MQTT Voyager</span>
+                    <p class="footer-tagline">Navigate the MQTT universe</p>
+                </div>
+
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <a href="#features">Features</a>
+                        <a href="#download">Download</a>
+                        <a href="https://github.com/igloo15/MQTT-Voyager/releases">Changelog</a>
+                    </div>
+
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <a href="https://github.com/igloo15/MQTT-Voyager#readme">Documentation</a>
+                        <a href="https://github.com/igloo15/MQTT-Voyager/issues">Support</a>
+                        <a href="https://github.com/igloo15/MQTT-Voyager/blob/main/CONTRIBUTING.md">Contributing</a>
+                    </div>
+
+                    <div class="footer-column">
+                        <h4>Community</h4>
+                        <a href="https://github.com/igloo15/MQTT-Voyager">GitHub</a>
+                        <a href="https://github.com/igloo15/MQTT-Voyager/issues">Issues</a>
+                        <a href="https://github.com/igloo15/MQTT-Voyager/discussions">Discussions</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>
+                    © 2025 MQTT Voyager. Released under the
+                    <a href="https://github.com/igloo15/MQTT-Voyager/blob/main/LICENSE" target="_blank">MIT License</a>.
+                </p>
+                <p>
+                    Made with ❤️ for the MQTT community
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Navbar background on scroll
+        window.addEventListener('scroll', () => {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+    </script>
+</body>
+</html>

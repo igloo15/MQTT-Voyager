@@ -277,31 +277,31 @@ const registerIpcHandlers = () => {
         }
 
         // Save to message history
-        if (messageHistory) {
-          messageHistory.addMessage(publishedMessage);
-        }
+        // if (messageHistory) {
+        //   messageHistory.addMessage(publishedMessage);
+        // }
 
-        // Update topic tree
-        topicTree.addMessage(publishedMessage);
+        // // Update topic tree
+        // topicTree.addMessage(publishedMessage);
 
-        // Send to renderer to display in live messages
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          // Convert payload for renderer (same logic as received messages)
-          const payloadForRenderer = Buffer.isBuffer(publishedMessage.payload)
-            ? (options.isBase64Encoded
-                ? publishedMessage.payload.toString('base64')
-                : publishedMessage.payload.toString('utf-8'))
-            : publishedMessage.payload;
+        // // Send to renderer to display in live messages
+        // if (mainWindow && !mainWindow.isDestroyed()) {
+        //   // Convert payload for renderer (same logic as received messages)
+        //   const payloadForRenderer = Buffer.isBuffer(publishedMessage.payload)
+        //     ? (options.isBase64Encoded
+        //         ? publishedMessage.payload.toString('base64')
+        //         : publishedMessage.payload.toString('utf-8'))
+        //     : publishedMessage.payload;
 
-          const messageForRenderer = {
-            ...publishedMessage,
-            payload: payloadForRenderer,
-            isMsgpack: options.isBase64Encoded || false,
-          };
+        //   const messageForRenderer = {
+        //     ...publishedMessage,
+        //     payload: payloadForRenderer,
+        //     isMsgpack: options.isBase64Encoded || false,
+        //   };
 
-          mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
-          mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
-        }
+        //   mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
+        //   mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+        // }
       } catch (error) {
         console.error(`Failed to publish to topic ${topic}:`, error);
         throw error;

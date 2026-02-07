@@ -20,6 +20,7 @@ interface AppHeaderProps {
   connectionStatus: ConnectionStatus;
   messageCount: number;
   token: any;
+  onDisconnect: () => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -28,12 +29,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   connectionStatus,
   messageCount,
   token,
+  onDisconnect
 }) => {
   const [isAboutModalVisible, setIsAboutModalVisible] = useState(false);
 
   const disconnectFromMQTT = async () => {
     try {
       await window.electronAPI.invoke(IPC_CHANNELS.MQTT_DISCONNECT);
+      onDisconnect();
     } catch (error) {
       console.error('Failed to disconnect:', error);
     }

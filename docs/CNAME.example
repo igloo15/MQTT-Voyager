@@ -1,0 +1,7 @@
+# Rename this file to 'CNAME' (without extension) and replace with your custom domain
+# Example: mqtt-voyager.example.com
+#
+# Then configure your DNS:
+# - Add a CNAME record pointing to: yourusername.github.io
+#
+# For more info: https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site

@@ -115,6 +115,10 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
     setSidebarCollapsed(true); // Collapse sidebar after successful connection
   };
 
+  const handleDisconnect = () => {
+    setSidebarCollapsed(false); // Expand sidebar on disconnect
+  }
+
   return (
     <Layout style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <AppHeader
@@ -123,6 +127,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
         connectionStatus={connectionStatus}
         messageCount={messageCount}
         token={token}
+        onDisconnect={handleDisconnect}
       />
 
       <Layout style={{ flex: 1, overflow: 'hidden' }}>
