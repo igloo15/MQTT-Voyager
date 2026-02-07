@@ -25,6 +25,7 @@ import {
   MinusOutlined,
   FilterOutlined,
   ApiOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import { formatDistanceToNow } from 'date-fns';
@@ -137,6 +138,17 @@ export const TopicTreeViewer: React.FC = () => {
                       {lastMessageTime}
                     </div>
                   )}
+                  <Tooltip title="View Details" key="view">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EyeOutlined />}
+                      onClick={() => {
+                        window.electronAPI.send(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, node.fullPath);
+                        antMessage.success(`Filtering messages to topic: ${node.fullPath}`);
+                      }}
+                    />
+                  </Tooltip>
               </div>
               {node.lastMessage && (
                 <div style={{ marginTop: '2px' }}>

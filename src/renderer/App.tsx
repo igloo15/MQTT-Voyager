@@ -112,6 +112,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
     setIsFormModalVisible(false);
     setSelectedConnection(undefined);
     setRefreshTrigger((prev) => prev + 1);
+    setSidebarCollapsed(true); // Collapse sidebar after successful connection
   };
 
   return (

@@ -48,6 +48,7 @@ export interface MqttMessage {
   timestamp: number;
   connectionId?: string;
   userProperties?: UserProperties;
+  isMsgpack?: boolean; // Flag indicating payload is base64-encoded MessagePack
 }
 
 // Connection Status
@@ -79,6 +80,7 @@ export interface PublishOptions {
   qos: QoS;
   retain: boolean;
   userProperties?: UserProperties;
+  isBase64Encoded?: boolean; // Flag for base64-encoded binary payloads (e.g., MessagePack)
 }
 
 // Subscription

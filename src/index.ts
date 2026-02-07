@@ -69,22 +69,61 @@ const initializeServices = () => {
   // Initialize message history database
   messageHistory = new MessageHistory();
 
+  // Helper function to check if payload is MessagePack
+  const isMsgpackPayload = (payload: Buffer): boolean => {
+    if (!payload || payload.length === 0) return false;
+    const firstByte = payload[0];
+    // Check for common MessagePack markers
+    return (
+      (firstByte >= 0x80 && firstByte <= 0x9f) || // fixmap or fixarray
+      (firstByte >= 0xa0 && firstByte <= 0xbf) || // fixstr
+      (firstByte >= 0xc0 && firstByte <= 0xdf) || // various types
+      firstByte === 0xdc || firstByte === 0xdd || // array 16/32
+      firstByte === 0xde || firstByte === 0xdf    // map 16/32
+    );
+  };
+
   // Set up MQTT service event listeners
   mqttService.on('message', (message) => {
-    // Add message to history
-    messageHistory?.addMessage(message);
+    // Detect MessagePack format and set flag BEFORE storing to database
+    let isMsgpack = false;
+    if (Buffer.isBuffer(message.payload) && isMsgpackPayload(message.payload)) {
+      isMsgpack = true;
+    }
+
+    // Create message with isMsgpack flag
+    const messageWithFlag = {
+      ...message,
+      isMsgpack,
+    };
+
+    // Add message to history with isMsgpack flag
+    messageHistory?.addMessage(messageWithFlag);
 
     // Update topic tree
-    topicTree.addMessage(message);
+    topicTree.addMessage(messageWithFlag);
 
     // Send message to renderer
     // Convert Buffer payload to string for IPC transmission
+    // For MessagePack payloads, send as base64 to preserve binary data
     if (mainWindow && !mainWindow.isDestroyed()) {
+      let payload: string;
+
+      if (Buffer.isBuffer(message.payload)) {
+        if (isMsgpack) {
+          // MessagePack payload - send as base64
+          payload = message.payload.toString('base64');
+        } else {
+          // Regular payload - send as UTF-8
+          payload = message.payload.toString('utf-8');
+        }
+      } else {
+        payload = message.payload;
+      }
+
       const messageForRenderer = {
-        ...message,
-        payload: Buffer.isBuffer(message.payload)
-          ? message.payload.toString('utf-8')
-          : message.payload,
+        ...messageWithFlag,
+        payload,
       };
       mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
       // Notify renderer that topic tree was updated
@@ -212,7 +251,12 @@ const registerIpcHandlers = () => {
     IPC_CHANNELS.MQTT_PUBLISH,
     async (_event, { topic, payload, options }: { topic: string; payload: string; options: PublishOptions }) => {
       try {
-        await mqttService.publish(topic, payload, options);
+        // Decode base64 payload if needed (e.g., for MessagePack)
+        const payloadBuffer = options.isBase64Encoded
+          ? Buffer.from(payload, 'base64')
+          : payload;
+
+        await mqttService.publish(topic, payloadBuffer, options);
         console.log(`Published message to topic: ${topic}`);
 
         // Create a message object for the published message
@@ -220,11 +264,12 @@ const registerIpcHandlers = () => {
         const publishedMessage: MqttMessage = {
           id: `pub-${Date.now()}-${Math.random()}`,
           topic,
-          payload: Buffer.from(payload),
+          payload: options.isBase64Encoded ? Buffer.from(payload, 'base64') : Buffer.from(payload),
           qos: (options.qos ?? 0) as QoS,
           retained: options.retain ?? false,
           timestamp: Date.now(),
           connectionId: mqttService.getCurrentConnectionId(),
+          isMsgpack: options.isBase64Encoded || false, // Flag MessagePack messages
         };
 
         if(options.userProperties) {
@@ -241,7 +286,20 @@ const registerIpcHandlers = () => {
 
         // Send to renderer to display in live messages
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, publishedMessage);
+          // Convert payload for renderer (same logic as received messages)
+          const payloadForRenderer = Buffer.isBuffer(publishedMessage.payload)
+            ? (options.isBase64Encoded
+                ? publishedMessage.payload.toString('base64')
+                : publishedMessage.payload.toString('utf-8'))
+            : publishedMessage.payload;
+
+          const messageForRenderer = {
+            ...publishedMessage,
+            payload: payloadForRenderer,
+            isMsgpack: options.isBase64Encoded || false,
+          };
+
+          mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
           mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
         }
       } catch (error) {
@@ -272,10 +330,11 @@ const registerIpcHandlers = () => {
 
     const messages = messageHistory.searchMessages(filterWithConnection);
     // Convert Buffer payloads to strings for renderer
+    // For MessagePack messages, use base64 to preserve binary data
     return messages.map(msg => ({
       ...msg,
       payload: Buffer.isBuffer(msg.payload)
-        ? msg.payload.toString('utf-8')
+        ? (msg.isMsgpack ? msg.payload.toString('base64') : msg.payload.toString('utf-8'))
         : msg.payload,
     }));
   });

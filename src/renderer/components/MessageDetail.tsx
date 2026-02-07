@@ -21,6 +21,11 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
   };
 
   const detectPayloadType = (): 'json' | 'xml' | 'msgpack' | 'text' | 'binary' => {
+    // Check if message is flagged as MessagePack (base64-encoded)
+    if (message.isMsgpack) {
+      return 'msgpack';
+    }
+
     // Check MessagePack first (if payload is not a string, it's binary)
     if (typeof message.payload !== 'string') {
       // Convert to Uint8Array if needed
@@ -56,17 +61,41 @@ export const MessageDetail: React.FC<MessageDetailProps> = ({ message }) => {
   const formatPayload = (): string => {
     const type = detectPayloadType();
 
-    if (type === 'msgpack' && typeof message.payload !== 'string') {
-      // Convert to Uint8Array if needed
-      const binaryPayload = message.payload instanceof Uint8Array
-        ? message.payload
-        : new Uint8Array(message.payload);
+    if (type === 'msgpack') {
+      // Decode base64-encoded MessagePack payload
+      if (message.isMsgpack && typeof message.payload === 'string') {
+        try {
+          // Decode base64 to Uint8Array
+          const base64 = message.payload;
+          const binaryString = atob(base64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
 
-      const result = decodeMsgpack(binaryPayload);
-      if (result.success && result.formatted) {
-        return result.formatted;
+          const result = decodeMsgpack(bytes);
+          if (result.success && result.formatted) {
+            return result.formatted;
+          }
+          return '[MessagePack decode failed]';
+        } catch (error) {
+          console.error('Failed to decode base64 MessagePack:', error);
+          return '[MessagePack decode failed]';
+        }
       }
-      return '[MessagePack decode failed]';
+
+      // Handle non-string MessagePack payloads (legacy)
+      if (typeof message.payload !== 'string') {
+        const binaryPayload = message.payload instanceof Uint8Array
+          ? message.payload
+          : new Uint8Array(message.payload);
+
+        const result = decodeMsgpack(binaryPayload);
+        if (result.success && result.formatted) {
+          return result.formatted;
+        }
+        return '[MessagePack decode failed]';
+      }
     }
 
     const payload = getPayloadString();

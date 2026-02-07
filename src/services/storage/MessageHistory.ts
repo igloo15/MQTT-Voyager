@@ -17,8 +17,8 @@ export class MessageHistory {
 
     // Prepare statements for better performance
     this.insertStmt = this.db.prepare(`
-      INSERT INTO messages (id, topic, payload, qos, retained, timestamp, connection_id, user_properties)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO messages (id, topic, payload, qos, retained, timestamp, connection_id, user_properties, is_msgpack)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     this.selectStmt = this.db.prepare(`
@@ -59,6 +59,15 @@ export class MessageHistory {
     if (!hasUserProperties) {
       console.log('Migrating database: adding user_properties column');
       this.db.exec('ALTER TABLE messages ADD COLUMN user_properties TEXT');
+    }
+
+    // Migration: Add is_msgpack column if it doesn't exist
+    const columnsAfter = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
+    const hasIsMsgpack = columnsAfter.some((col: any) => col.name === 'is_msgpack');
+
+    if (!hasIsMsgpack) {
+      console.log('Migrating database: adding is_msgpack column');
+      this.db.exec('ALTER TABLE messages ADD COLUMN is_msgpack INTEGER DEFAULT 0');
     }
 
     // Create FTS5 virtual table for full-text search on payload
@@ -107,7 +116,8 @@ export class MessageHistory {
         message.retained ? 1 : 0,
         message.timestamp,
         message.connectionId || null,
-        userPropertiesJson
+        userPropertiesJson,
+        message.isMsgpack ? 1 : 0
       );
     } catch (error) {
       console.error('Failed to add message to history:', error);
@@ -224,6 +234,7 @@ export class MessageHistory {
         timestamp: row.timestamp,
         connectionId: row.connection_id,
         userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
+        isMsgpack: row.is_msgpack === 1,
       }));
     } catch (error) {
       console.error('Failed to search messages:', error);
@@ -268,6 +279,7 @@ export class MessageHistory {
         timestamp: row.timestamp,
         connectionId: row.connection_id,
         userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
+        isMsgpack: row.is_msgpack === 1,
       }));
     } catch (error) {
       console.error('Failed to get recent messages:', error);

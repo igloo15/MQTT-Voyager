@@ -13,6 +13,7 @@ import {
 import { SendOutlined, ClearOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { QoS } from '@shared/types/models';
+import { encode as msgpackEncode } from '@msgpack/msgpack';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -21,8 +22,17 @@ const { Panel } = Collapse;
 export const MessagePublisher: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [payloadType, setPayloadType] = useState<'text' | 'json'>('text');
+  const [payloadType, setPayloadType] = useState<'text' | 'json' | 'msgpack'>('text');
   const [userProperties, setUserProperties] = useState<Array<{key: string, value: string}>>([]);
+
+  // Helper function to convert Uint8Array to base64
+  const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  };
 
   const handlePublish = async (values: any) => {
     setLoading(true);
@@ -37,6 +47,29 @@ export const MessagePublisher: React.FC = () => {
           JSON.parse(payload);
         } catch (error) {
           antMessage.error('Invalid JSON payload');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Encode as MessagePack if needed
+      let isBase64Encoded = false;
+      if (payloadType === 'msgpack') {
+        try {
+          if (!payload || payload.trim() === '') {
+            antMessage.error('Payload cannot be empty for MessagePack encoding');
+            setLoading(false);
+            return;
+          }
+          // Parse JSON and encode as MessagePack
+          const data = JSON.parse(payload);
+          const encoded = msgpackEncode(data);
+          // Convert Uint8Array to base64 string for transmission
+          payload = uint8ArrayToBase64(encoded);
+          isBase64Encoded = true;
+        } catch (error: any) {
+          console.error('MessagePack encoding error:', error);
+          antMessage.error(`Invalid JSON for MessagePack encoding: ${error.message || 'Unknown error'}`);
           setLoading(false);
           return;
         }
@@ -57,6 +90,7 @@ export const MessagePublisher: React.FC = () => {
           qos: values.qos,
           retain: values.retain,
           userProperties: Object.keys(userPropsObject).length > 0 ? userPropsObject : undefined,
+          isBase64Encoded, // Flag to indicate base64-encoded binary data
         },
       });
 
@@ -92,18 +126,17 @@ export const MessagePublisher: React.FC = () => {
   };
 
   const generateSamplePayload = () => {
+    const sampleData = {
+      timestamp: new Date().toISOString(),
+      message: 'Hello from MQTT Voyager!',
+      value: 42,
+      status: 'online',
+    };
+
     const samples = {
       text: 'Hello from MQTT Voyager!',
-      json: JSON.stringify(
-        {
-          timestamp: new Date().toISOString(),
-          message: 'Hello from MQTT Voyager!',
-          value: 42,
-          status: 'online',
-        },
-        null,
-        2
-      ),
+      json: JSON.stringify(sampleData, null, 2),
+      msgpack: JSON.stringify(sampleData, null, 2),
     };
 
     form.setFieldValue('payload', samples[payloadType]);
@@ -161,12 +194,13 @@ export const MessagePublisher: React.FC = () => {
                     <Select
                       value={payloadType}
                       onChange={setPayloadType}
-                      style={{ width: 120 }}
+                      style={{ width: 140 }}
                     >
                       <Option value="text">Text</Option>
                       <Option value="json">JSON</Option>
+                      <Option value="msgpack">MessagePack</Option>
                     </Select>
-                    {payloadType === 'json' && (
+                    {(payloadType === 'json' || payloadType === 'msgpack') && (
                       <Button size="small" onClick={handleFormatJSON}>
                         Format JSON
                       </Button>
@@ -185,9 +219,11 @@ export const MessagePublisher: React.FC = () => {
                   <TextArea
                     rows={8}
                     placeholder={
-                      payloadType === 'json'
-                        ? '{\n  "key": "value"\n}'
-                        : 'Enter your message here...'
+                      payloadType === 'text'
+                        ? 'Enter your message here...'
+                        : payloadType === 'msgpack'
+                        ? '{\n  "key": "value"\n}\n(Will be encoded as MessagePack)'
+                        : '{\n  "key": "value"\n}'
                     }
                     style={{ fontFamily: 'monospace' }}
                   />
