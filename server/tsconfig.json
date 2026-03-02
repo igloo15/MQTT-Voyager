@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "baseUrl": "..",
+    "outDir": "../dist/server",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "../src/services/**/*",
+    "../shared/**/*"
+  ]
+}

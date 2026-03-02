@@ -8,7 +8,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons';
 import type { ConnectionStatus } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import { AboutModal } from './AboutModal';
 
 const { Header } = Layout;
@@ -35,7 +35,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const disconnectFromMQTT = async () => {
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_DISCONNECT);
+      await api.mqtt.disconnect();
       onDisconnect();
     } catch (error) {
       console.error('Failed to disconnect:', error);

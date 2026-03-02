@@ -23,9 +23,9 @@ export const AboutModal: React.FC<AboutModalProps> = ({ visible, onClose }) => {
     author: 'igloo15',
     license: 'MIT',
     year: '2026',
-    electronVersion: window.electronAPI.versions.electron,
-    chromeVersion: window.electronAPI.versions.chrome,
-    nodeVersion: window.electronAPI.versions.node,
+    electronVersion: (window as any).electronAPI?.versions?.electron,
+    chromeVersion: (window as any).electronAPI?.versions?.chrome,
+    nodeVersion: (window as any).electronAPI?.versions?.node,
   };
 
   return (

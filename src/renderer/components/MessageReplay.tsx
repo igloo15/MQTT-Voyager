@@ -26,7 +26,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { MqttMessage, MessageFilter } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 const { Option } = Select;
 const { Panel } = Collapse;
@@ -56,10 +56,7 @@ export const MessageReplay: React.FC = () => {
     setLoading(true);
     try {
       const filter: MessageFilter = { limit };
-      const loadedMessages = await window.electronAPI.invoke(
-        IPC_CHANNELS.MESSAGE_SEARCH,
-        filter
-      );
+      const loadedMessages = await api.messages.search(filter);
 
       // Calculate relative timing based on timestamps
       const messagesWithTiming: RecordedMessage[] = loadedMessages.map((msg: MqttMessage, index: number) => {
@@ -91,13 +88,9 @@ export const MessageReplay: React.FC = () => {
         payload = String(payload);
       }
 
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_PUBLISH, {
-        topic: message.topic,
-        payload: payload,
-        options: {
-          qos: message.qos,
-          retain: message.retained,
-        },
+      await api.mqtt.publish(message.topic, payload, {
+        qos: message.qos,
+        retain: message.retained,
       });
     } catch (error: any) {
       console.error('Failed to publish message:', error);
@@ -194,35 +187,29 @@ export const MessageReplay: React.FC = () => {
   useEffect(() => {
     if (!isRecording) return;
 
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MQTT_MESSAGE,
-      (message: MqttMessage) => {
-        const relativeTime = Date.now() - recordingStartTime;
-        setRecordedMessages((prev) => [
-          ...prev,
-          { ...message, relativeTime } as RecordedMessage,
-        ]);
-      }
-    );
+    const removeListener = api.events.onMessage((message: MqttMessage) => {
+      const relativeTime = Date.now() - recordingStartTime;
+      setRecordedMessages((prev) => [
+        ...prev,
+        { ...message, relativeTime } as RecordedMessage,
+      ]);
+    });
 
     return () => removeListener();
   }, [isRecording, recordingStartTime]);
 
   // Listen for connection changes and clear replay state
   useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, clearing replay state:', connectionId);
-        // Stop any active playback
-        if (isPlaying) {
-          stopReplay();
-        }
-        // Clear loaded messages
-        setMessages([]);
-        setRecordedMessages([]);
+    const removeListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('Connection changed, clearing replay state:', connectionId);
+      // Stop any active playback
+      if (isPlaying) {
+        stopReplay();
       }
-    );
+      // Clear loaded messages
+      setMessages([]);
+      setRecordedMessages([]);
+    });
 
     return () => removeListener();
   }, [isPlaying]);

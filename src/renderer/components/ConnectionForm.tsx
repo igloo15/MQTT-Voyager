@@ -21,7 +21,7 @@ import {
   BellOutlined,
 } from '@ant-design/icons';
 import type { ConnectionConfig, QoS } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 const { Panel } = Collapse;
 const { TextArea } = Input;
@@ -82,10 +82,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       }
 
       // Save the connection profile
-      const connectionId = await window.electronAPI.invoke(
-        IPC_CHANNELS.CONNECTION_SAVE,
-        config
-      );
+      const connectionId = await api.connections.save(config);
 
       message.success(`Connection profile "${values.name}" saved successfully`);
 
@@ -132,7 +129,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       }
 
       // Connect to the broker (main process handles disconnecting existing connection)
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_CONNECT, config);
+      await api.mqtt.connect(config);
       message.success(`Connected to ${values.host}`);
 
       // Call onConnect callback AFTER successful connection
@@ -177,14 +174,14 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       }
 
       // Connect for testing
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_CONNECT, config);
+      await api.mqtt.connect(config);
       message.success('Connection test successful!');
 
       // Wait a moment to ensure connection is established
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Disconnect after test
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_DISCONNECT);
+      await api.mqtt.disconnect();
     } catch (error: any) {
       message.error(`Connection test failed: ${error.message || 'Unknown error'}`);
     } finally {

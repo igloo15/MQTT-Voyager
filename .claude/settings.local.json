@@ -8,7 +8,10 @@
       "Bash(npm run start)",
       "Bash(tasklist:*)",
       "Bash(findstr:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx webpack --config webpack.main.config.ts)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(timeout 60 npx electron-forge package)"
     ]
   }
 }

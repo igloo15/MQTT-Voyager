@@ -11,7 +11,7 @@ import {
   Collapse,
 } from 'antd';
 import { SendOutlined, ClearOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import type { QoS } from '@shared/types/models';
 import { encode as msgpackEncode } from '@msgpack/msgpack';
 
@@ -83,15 +83,11 @@ export const MessagePublisher: React.FC = () => {
         }
       });
 
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_PUBLISH, {
-        topic: values.topic,
-        payload,
-        options: {
-          qos: values.qos,
-          retain: values.retain,
-          userProperties: Object.keys(userPropsObject).length > 0 ? userPropsObject : undefined,
-          isBase64Encoded, // Flag to indicate base64-encoded binary data
-        },
+      await api.mqtt.publish(values.topic, payload, {
+        qos: values.qos,
+        retain: values.retain,
+        userProperties: Object.keys(userPropsObject).length > 0 ? userPropsObject : undefined,
+        isBase64Encoded, // Flag to indicate base64-encoded binary data
       });
 
       antMessage.success(`Message published to ${values.topic}`);

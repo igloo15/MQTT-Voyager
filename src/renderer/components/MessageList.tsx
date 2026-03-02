@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   List,
   Card,
@@ -33,7 +33,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import type { MqttMessage, MessageFilter } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import { MessageDetail } from './MessageDetail';
 import { format } from 'date-fns';
 import dayjs, { Dayjs } from 'dayjs';
@@ -125,7 +125,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     setIsLoading(true);
     try {
       const filter = buildFilter();
-      const results = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_SEARCH, filter);
+      const results = await api.messages.search(filter);
       setMessages(results);
     } catch (error: any) {
       console.error('Failed to load messages:', error);
@@ -140,46 +140,64 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
     loadMessages();
   }, [loadMessages]);
 
+  // Refs so the message handler always sees current values without re-subscribing
+  const hasActiveFiltersRef = useRef(hasActiveFilters);
+  const filterLimitRef = useRef(filterLimit);
+  const autoRefreshRef = useRef(autoRefresh);
+  useEffect(() => { hasActiveFiltersRef.current = hasActiveFilters; }, [hasActiveFilters]);
+  useEffect(() => { filterLimitRef.current = filterLimit; }, [filterLimit]);
+  useEffect(() => { autoRefreshRef.current = autoRefresh; }, [autoRefresh]);
+
+  // Debounce timer for when filters are active (avoid DB storm under high message rate)
+  const filterRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Listen for new messages and refresh if auto-refresh is enabled
   useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MQTT_MESSAGE,
-      (message: MqttMessage) => {
-        // Reload messages from database when new message arrives
-        if (autoRefresh) {
+    const removeListener = api.events.onMessage((message: MqttMessage) => {
+      if (!autoRefreshRef.current) return;
+
+      if (!hasActiveFiltersRef.current) {
+        // No filters: prepend directly — zero IPC/DB overhead
+        setMessages(prev => {
+          const next = [message, ...prev];
+          return next.length > filterLimitRef.current ? next.slice(0, filterLimitRef.current) : next;
+        });
+      } else {
+        // Filters active: debounce to at most one DB query per 500 ms
+        if (filterRefreshTimerRef.current) clearTimeout(filterRefreshTimerRef.current);
+        filterRefreshTimerRef.current = setTimeout(() => {
+          filterRefreshTimerRef.current = null;
           loadMessages();
-        }
+        }, 500);
       }
-    );
+    });
 
     return () => {
       removeListener();
+      if (filterRefreshTimerRef.current) {
+        clearTimeout(filterRefreshTimerRef.current);
+        filterRefreshTimerRef.current = null;
+      }
     };
-  }, [autoRefresh, loadMessages]);
+  }, [loadMessages]);
 
   // Listen for connection changes and reload messages
   useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, reloading messages for new connection:', connectionId);
-        // Clear and reload messages
-        setMessages([]);
-        loadMessages();
-      }
-    );
+    const removeListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('Connection changed, reloading messages for new connection:', connectionId);
+      // Clear and reload messages
+      setMessages([]);
+      loadMessages();
+    });
 
     return () => removeListener();
   }, [loadMessages]);
 
   // Listen for filter topic events from TopicTreeViewer
   useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MESSAGE_FILTER_TOPIC,
-      (topic: string) => {
-        setTopicFilter(topic);
-      }
-    );
+    const removeListener = api.events.onFilterTopic((topic: string) => {
+      setTopicFilter(topic);
+    });
 
     return () => {
       removeListener();
@@ -224,7 +242,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
 
   const handleClearAllMessages = async () => {
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_CLEAR);
+      await api.messages.clear();
       setMessages([]);
       antMessage.success('All messages cleared');
     } catch (error: any) {
@@ -235,10 +253,7 @@ export const MessageList: React.FC<MessageListProps> = ({ maxMessages = 200 }) =
   const handleExport = async (format: 'json' | 'csv') => {
     try {
       const filter = buildFilter();
-      const data = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_EXPORT, {
-        filter,
-        format,
-      });
+      const data = await api.messages.export(filter, format);
 
       const blob = new Blob([data], {
         type: format === 'json' ? 'application/json' : 'text/csv',

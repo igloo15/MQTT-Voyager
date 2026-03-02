@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { app } from 'electron';
 import type { MqttMessage, MessageFilter, Statistics } from '../../../shared/types/models';
 
 export class MessageHistory {
@@ -9,10 +8,23 @@ export class MessageHistory {
   private selectStmt: Database.Statement;
 
   constructor(dbPath?: string) {
-    const userDataPath = app.getPath('userData');
-    const defaultDbPath = path.join(userDataPath, 'mqtt-messages.db');
+    let resolvedPath = dbPath;
+    if (!resolvedPath) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { app } = require('electron');
+        const userDataPath = app.getPath('userData');
+        resolvedPath = path.join(userDataPath, 'mqtt-messages.db');
+      } catch {
+        resolvedPath = path.join(process.cwd(), 'data', 'messages.db');
+      }
+    }
 
-    this.db = new Database(dbPath || defaultDbPath);
+    this.db = new Database(resolvedPath);
+    // WAL mode: readers don't block writers, much faster under concurrent load
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = NORMAL'); // safe with WAL, faster than FULL
+    this.db.pragma('cache_size = -8000');   // 8 MB page cache
     this.initializeDatabase();
 
     // Prepare statements for better performance

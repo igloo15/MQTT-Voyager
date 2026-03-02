@@ -23,6 +23,18 @@ if (require('electron-squirrel-startup')) {
 
 let mainWindow: BrowserWindow | null = null;
 
+// Debounced topic tree updater — coalesces rapid bursts into one IPC send
+let topicTreeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+const sendTopicTreeUpdate = () => {
+  if (topicTreeDebounceTimer) clearTimeout(topicTreeDebounceTimer);
+  topicTreeDebounceTimer = setTimeout(() => {
+    topicTreeDebounceTimer = null;
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+    }
+  }, 300);
+};
+
 // Service instances
 const mqttService = new MqttService();
 const topicTree = new TopicTree();
@@ -126,8 +138,8 @@ const initializeServices = () => {
         payload,
       };
       mainWindow.webContents.send(IPC_CHANNELS.MQTT_MESSAGE, messageForRenderer);
-      // Notify renderer that topic tree was updated
-      mainWindow.webContents.send(IPC_CHANNELS.TOPIC_TREE_UPDATED);
+      // Notify renderer that topic tree was updated (debounced to avoid flooding)
+      sendTopicTreeUpdate();
     }
   });
 

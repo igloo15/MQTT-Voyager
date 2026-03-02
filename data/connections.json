@@ -1,0 +1,18 @@
+{
+  "connections": {
+    "conn_1772416064447_r8nhyt8": {
+      "name": "mqtt home",
+      "protocol": "mqtt",
+      "host": "mqtt.igloo15",
+      "port": 1883,
+      "cleanSession": true,
+      "keepalive": 60,
+      "reconnectPeriod": 1000,
+      "connectTimeout": 30000,
+      "protocolVersion": 5,
+      "defaultSubscriptions": [],
+      "id": "conn_1772416064447_r8nhyt8"
+    }
+  },
+  "lastUsedConnectionId": null
+}

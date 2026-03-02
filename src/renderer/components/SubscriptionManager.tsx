@@ -15,7 +15,7 @@ import {
   ApiOutlined,
 } from '@ant-design/icons';
 import type { Subscription } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 export const SubscriptionManager: React.FC = () => {
   const [quickSubscribeTopic, setQuickSubscribeTopic] = useState('');
@@ -25,16 +25,13 @@ export const SubscriptionManager: React.FC = () => {
     loadSubscriptions();
 
     // Listen for connection changes
-    const removeConnectionListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, clearing subscriptions:', connectionId);
-        setSubscriptions([]);
-        if (connectionId) {
-          loadSubscriptions();
-        }
+    const removeConnectionListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('Connection changed, clearing subscriptions:', connectionId);
+      setSubscriptions([]);
+      if (connectionId) {
+        loadSubscriptions();
       }
-    );
+    });
 
     return () => {
       removeConnectionListener();
@@ -43,7 +40,7 @@ export const SubscriptionManager: React.FC = () => {
 
   const loadSubscriptions = async () => {
     try {
-      const subs = await window.electronAPI.invoke(IPC_CHANNELS.MQTT_GET_SUBSCRIPTIONS);
+      const subs = await api.mqtt.getSubscriptions();
       setSubscriptions(subs);
     } catch (error) {
       console.error('Failed to load subscriptions:', error);
@@ -57,10 +54,7 @@ export const SubscriptionManager: React.FC = () => {
     }
 
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-        topic: quickSubscribeTopic,
-        qos: 0,
-      });
+      await api.mqtt.subscribe(quickSubscribeTopic, 0);
       antMessage.success(`Subscribed to ${quickSubscribeTopic}`);
       setQuickSubscribeTopic('');
       await loadSubscriptions();
@@ -71,7 +65,7 @@ export const SubscriptionManager: React.FC = () => {
 
   const handleUnsubscribe = async (topic: string) => {
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_UNSUBSCRIBE, topic);
+      await api.mqtt.unsubscribe(topic);
       antMessage.success(`Unsubscribed from ${topic}`);
       await loadSubscriptions();
     } catch (error: any) {

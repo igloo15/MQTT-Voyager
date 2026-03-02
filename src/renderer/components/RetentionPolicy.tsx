@@ -21,7 +21,7 @@ import {
   DatabaseOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 const { Option } = Select;
 
@@ -55,7 +55,7 @@ export const RetentionPolicy: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const stats = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_GET_STATS);
+      const stats = await api.messages.getStats();
       if (stats) {
         setTotalMessages(stats.totalMessages);
       }
@@ -91,7 +91,7 @@ export const RetentionPolicy: React.FC = () => {
       }
 
       // Clean by count (keep only the most recent maxMessages)
-      const stats = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_GET_STATS);
+      const stats = await api.messages.getStats();
       if (stats && stats.totalMessages > settings.maxMessages) {
         cleaned = stats.totalMessages - settings.maxMessages;
         antMessage.info(`Retention policy would clean ${cleaned} messages (not implemented yet)`);
@@ -122,7 +122,7 @@ export const RetentionPolicy: React.FC = () => {
   const handleClearAll = async () => {
     setLoading(true);
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_CLEAR);
+      await api.messages.clear();
       antMessage.success('All messages cleared');
       await loadStats();
     } catch (error: any) {

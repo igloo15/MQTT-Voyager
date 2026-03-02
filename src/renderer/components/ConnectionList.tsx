@@ -18,7 +18,7 @@ import {
   SafetyOutlined,
 } from '@ant-design/icons';
 import type { ConnectionConfig } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 interface ConnectionListProps {
   onEdit?: (connection: ConnectionConfig) => void;
@@ -41,7 +41,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
   const loadConnections = async () => {
     setLoading(true);
     try {
-      const profiles = await window.electronAPI.invoke(IPC_CHANNELS.CONNECTION_LIST);
+      const profiles = await api.connections.list();
       setConnections(profiles);
     } catch (error) {
       message.error('Failed to load connection profiles');
@@ -53,7 +53,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
 
   const handleDelete = async (id: string, name: string) => {
     try {
-      await window.electronAPI.invoke(IPC_CHANNELS.CONNECTION_DELETE, id);
+      await api.connections.delete(id);
       message.success(`Deleted connection "${name}"`);
       loadConnections();
     } catch (error) {
@@ -65,10 +65,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
   const handleConnect = async (connectionId: string) => {
     try {
       // Get full connection details (including password)
-      const connection = await window.electronAPI.invoke(
-        IPC_CHANNELS.CONNECTION_GET,
-        connectionId
-      );
+      const connection = await api.connections.get(connectionId);
 
       if (!connection) {
         message.error('Connection profile not found');
@@ -79,7 +76,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
         onConnect(connection);
       }
 
-      await window.electronAPI.invoke(IPC_CHANNELS.MQTT_CONNECT, connection);
+      await api.mqtt.connect(connection);
       message.success(`Connected to ${connection.name}`);
     } catch (error: any) {
       message.error(`Failed to connect: ${error.message || 'Unknown error'}`);
@@ -90,10 +87,7 @@ export const ConnectionList: React.FC<ConnectionListProps> = ({
   const handleEdit = async (connectionId: string) => {
     try {
       // Get full connection details (including password)
-      const connection = await window.electronAPI.invoke(
-        IPC_CHANNELS.CONNECTION_GET,
-        connectionId
-      );
+      const connection = await api.connections.get(connectionId);
 
       if (!connection) {
         message.error('Connection profile not found');

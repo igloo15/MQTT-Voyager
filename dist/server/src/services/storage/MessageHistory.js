@@ -1,0 +1,399 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MessageHistory = void 0;
+const better_sqlite3_1 = __importDefault(require("better-sqlite3"));
+const path_1 = __importDefault(require("path"));
+class MessageHistory {
+    constructor(dbPath) {
+        let resolvedPath = dbPath;
+        if (!resolvedPath) {
+            try {
+                // eslint-disable-next-line @typescript-eslint/no-var-requires
+                const { app } = require('electron');
+                const userDataPath = app.getPath('userData');
+                resolvedPath = path_1.default.join(userDataPath, 'mqtt-messages.db');
+            }
+            catch {
+                resolvedPath = path_1.default.join(process.cwd(), 'data', 'messages.db');
+            }
+        }
+        this.db = new better_sqlite3_1.default(resolvedPath);
+        // WAL mode: readers don't block writers, much faster under concurrent load
+        this.db.pragma('journal_mode = WAL');
+        this.db.pragma('synchronous = NORMAL'); // safe with WAL, faster than FULL
+        this.db.pragma('cache_size = -8000'); // 8 MB page cache
+        this.initializeDatabase();
+        // Prepare statements for better performance
+        this.insertStmt = this.db.prepare(`
+      INSERT INTO messages (id, topic, payload, qos, retained, timestamp, connection_id, user_properties, is_msgpack)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+        this.selectStmt = this.db.prepare(`
+      SELECT * FROM messages
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+    }
+    /**
+     * Initialize database schema
+     */
+    initializeDatabase() {
+        // Create messages table
+        this.db.exec(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        topic TEXT NOT NULL,
+        payload BLOB,
+        qos INTEGER,
+        retained INTEGER,
+        timestamp INTEGER NOT NULL,
+        connection_id TEXT
+      );
+    `);
+        // Create indexes for better query performance
+        this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_topic ON messages(topic);
+      CREATE INDEX IF NOT EXISTS idx_timestamp ON messages(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_connection ON messages(connection_id);
+    `);
+        // Migration: Add user_properties column if it doesn't exist
+        const columns = this.db.prepare("PRAGMA table_info(messages)").all();
+        const hasUserProperties = columns.some((col) => col.name === 'user_properties');
+        if (!hasUserProperties) {
+            console.log('Migrating database: adding user_properties column');
+            this.db.exec('ALTER TABLE messages ADD COLUMN user_properties TEXT');
+        }
+        // Migration: Add is_msgpack column if it doesn't exist
+        const columnsAfter = this.db.prepare("PRAGMA table_info(messages)").all();
+        const hasIsMsgpack = columnsAfter.some((col) => col.name === 'is_msgpack');
+        if (!hasIsMsgpack) {
+            console.log('Migrating database: adding is_msgpack column');
+            this.db.exec('ALTER TABLE messages ADD COLUMN is_msgpack INTEGER DEFAULT 0');
+        }
+        // Create FTS5 virtual table for full-text search on payload
+        this.db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+        payload,
+        content=messages,
+        content_rowid=rowid
+      );
+    `);
+        // Create triggers to keep FTS table in sync
+        this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+        INSERT INTO messages_fts(rowid, payload) VALUES (new.rowid, new.payload);
+      END;
+    `);
+        this.db.exec(`
+      CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+        INSERT INTO messages_fts(messages_fts, rowid, payload) VALUES('delete', old.rowid, old.payload);
+      END;
+    `);
+        console.log('Database initialized successfully');
+    }
+    /**
+     * Add a message to the history
+     */
+    addMessage(message) {
+        try {
+            const payload = Buffer.isBuffer(message.payload)
+                ? message.payload
+                : Buffer.from(message.payload);
+            const userPropertiesJson = message.userProperties
+                ? JSON.stringify(message.userProperties)
+                : null;
+            this.insertStmt.run(message.id, message.topic, payload, message.qos, message.retained ? 1 : 0, message.timestamp, message.connectionId || null, userPropertiesJson, message.isMsgpack ? 1 : 0);
+        }
+        catch (error) {
+            console.error('Failed to add message to history:', error);
+        }
+    }
+    /**
+     * Search messages with filters
+     */
+    searchMessages(filter = {}) {
+        const conditions = [];
+        const params = [];
+        // Connection filter
+        if (filter.connectionId) {
+            conditions.push('connection_id = ?');
+            params.push(filter.connectionId);
+        }
+        // Topic filter (supports wildcards)
+        if (filter.topic) {
+            if (filter.topic.includes('+') || filter.topic.includes('#')) {
+                // Convert MQTT wildcards to SQL LIKE pattern
+                const pattern = filter.topic
+                    .replace(/\+/g, '%')
+                    .replace(/#/g, '%');
+                conditions.push('topic LIKE ?');
+                params.push(pattern);
+            }
+            else {
+                conditions.push('topic = ?');
+                params.push(filter.topic);
+            }
+        }
+        // Time range filters
+        if (filter.startTime) {
+            conditions.push('timestamp >= ?');
+            params.push(filter.startTime);
+        }
+        if (filter.endTime) {
+            conditions.push('timestamp <= ?');
+            params.push(filter.endTime);
+        }
+        // QoS filter
+        if (filter.qos !== undefined) {
+            conditions.push('qos = ?');
+            params.push(filter.qos);
+        }
+        // Retained filter
+        if (filter.retained !== undefined) {
+            conditions.push('retained = ?');
+            params.push(filter.retained ? 1 : 0);
+        }
+        // User property key filter
+        if (filter.userPropertyKey) {
+            conditions.push('user_properties LIKE ?');
+            params.push(`%"${filter.userPropertyKey}"%`);
+        }
+        // User property value filter
+        if (filter.userPropertyValue) {
+            conditions.push('user_properties LIKE ?');
+            params.push(`%"${filter.userPropertyValue}"%`);
+        }
+        // Payload search using FTS
+        let query = 'SELECT * FROM messages';
+        if (filter.payloadSearch) {
+            query = `
+        SELECT m.* FROM messages m
+        INNER JOIN messages_fts fts ON m.rowid = fts.rowid
+        WHERE messages_fts MATCH ?
+      `;
+            params.unshift(filter.payloadSearch);
+        }
+        // Add WHERE clause for other conditions
+        if (conditions.length > 0) {
+            if (filter.payloadSearch) {
+                query += ' AND ' + conditions.join(' AND ');
+            }
+            else {
+                query += ' WHERE ' + conditions.join(' AND ');
+            }
+        }
+        // Add ORDER BY and LIMIT
+        query += ' ORDER BY timestamp DESC';
+        if (filter.limit) {
+            query += ' LIMIT ?';
+            params.push(filter.limit);
+        }
+        if (filter.offset) {
+            query += ' OFFSET ?';
+            params.push(filter.offset);
+        }
+        try {
+            const stmt = this.db.prepare(query);
+            const rows = stmt.all(...params);
+            return rows.map((row) => ({
+                id: row.id,
+                topic: row.topic,
+                payload: row.payload,
+                qos: row.qos,
+                retained: row.retained === 1,
+                timestamp: row.timestamp,
+                connectionId: row.connection_id,
+                userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
+                isMsgpack: row.is_msgpack === 1,
+            }));
+        }
+        catch (error) {
+            console.error('Failed to search messages:', error);
+            return [];
+        }
+    }
+    /**
+     * Get recent messages (optionally for a specific connection)
+     */
+    getRecentMessages(limit = 100, connectionId) {
+        try {
+            let query;
+            let params;
+            if (connectionId) {
+                query = `
+          SELECT * FROM messages
+          WHERE connection_id = ?
+          ORDER BY timestamp DESC
+          LIMIT ?
+        `;
+                params = [connectionId, limit];
+            }
+            else {
+                query = `
+          SELECT * FROM messages
+          ORDER BY timestamp DESC
+          LIMIT ?
+        `;
+                params = [limit];
+            }
+            const stmt = this.db.prepare(query);
+            const rows = stmt.all(...params);
+            return rows.map((row) => ({
+                id: row.id,
+                topic: row.topic,
+                payload: row.payload,
+                qos: row.qos,
+                retained: row.retained === 1,
+                timestamp: row.timestamp,
+                connectionId: row.connection_id,
+                userProperties: row.user_properties ? JSON.parse(row.user_properties) : undefined,
+                isMsgpack: row.is_msgpack === 1,
+            }));
+        }
+        catch (error) {
+            console.error('Failed to get recent messages:', error);
+            return [];
+        }
+    }
+    /**
+     * Get statistics
+     */
+    getStatistics(connectionId) {
+        try {
+            const whereClause = connectionId ? 'WHERE connection_id = ?' : '';
+            const params = connectionId ? [connectionId] : [];
+            // Total message count
+            const totalResult = this.db.prepare(`SELECT COUNT(*) as count FROM messages ${whereClause}`).get(...params);
+            const totalMessages = totalResult.count;
+            // Messages by topic
+            const topicResults = this.db.prepare(`
+        SELECT topic, COUNT(*) as count
+        FROM messages
+        ${whereClause}
+        GROUP BY topic
+        ORDER BY count DESC
+        LIMIT 10
+      `).all(...params);
+            const messagesByTopic = {};
+            topicResults.forEach((row) => {
+                messagesByTopic[row.topic] = row.count;
+            });
+            // Unique topic count
+            const topicCountResult = this.db.prepare(`SELECT COUNT(DISTINCT topic) as count FROM messages ${whereClause}`).get(...params);
+            const topicCount = topicCountResult.count;
+            // Messages per second (last minute)
+            const oneMinuteAgo = Date.now() - 60000;
+            const recentWhere = connectionId
+                ? 'WHERE connection_id = ? AND timestamp >= ?'
+                : 'WHERE timestamp >= ?';
+            const recentParams = connectionId ? [connectionId, oneMinuteAgo] : [oneMinuteAgo];
+            const recentResult = this.db.prepare(`SELECT COUNT(*) as count FROM messages ${recentWhere}`).get(...recentParams);
+            const messagesPerSecond = recentResult.count / 60;
+            // Data volume (approximate)
+            const sizeResult = this.db.prepare(`SELECT SUM(LENGTH(payload)) as size FROM messages ${whereClause}`).get(...params);
+            const dataVolume = sizeResult.size || 0;
+            return {
+                totalMessages,
+                messagesByTopic,
+                messagesPerSecond,
+                dataVolume,
+                topicCount,
+            };
+        }
+        catch (error) {
+            console.error('Failed to get statistics:', error);
+            return {
+                totalMessages: 0,
+                messagesByTopic: {},
+                messagesPerSecond: 0,
+                dataVolume: 0,
+                topicCount: 0,
+            };
+        }
+    }
+    /**
+     * Clear all messages (optionally for a specific connection)
+     */
+    clearAll(connectionId) {
+        try {
+            if (connectionId) {
+                // Clear only for specific connection
+                const stmt = this.db.prepare('DELETE FROM messages WHERE connection_id = ?');
+                const result = stmt.run(connectionId);
+                console.log(`Cleared ${result.changes} messages for connection ${connectionId}`);
+            }
+            else {
+                // Clear all messages
+                this.db.exec('DELETE FROM messages');
+                this.db.exec('DELETE FROM messages_fts');
+                console.log('All messages cleared');
+            }
+        }
+        catch (error) {
+            console.error('Failed to clear messages:', error);
+        }
+    }
+    /**
+     * Clear messages older than a timestamp
+     */
+    clearOlderThan(timestamp) {
+        try {
+            const stmt = this.db.prepare('DELETE FROM messages WHERE timestamp < ?');
+            const result = stmt.run(timestamp);
+            console.log(`Cleared ${result.changes} old messages`);
+        }
+        catch (error) {
+            console.error('Failed to clear old messages:', error);
+        }
+    }
+    /**
+     * Export messages as JSON
+     */
+    exportAsJSON(filter = {}) {
+        const messages = this.searchMessages(filter);
+        const exportData = messages.map((msg) => ({
+            id: msg.id,
+            topic: msg.topic,
+            payload: msg.payload.toString('utf-8'),
+            qos: msg.qos,
+            retained: msg.retained,
+            timestamp: msg.timestamp,
+            datetime: new Date(msg.timestamp).toISOString(),
+            userProperties: msg.userProperties,
+        }));
+        return JSON.stringify(exportData, null, 2);
+    }
+    /**
+     * Export messages as CSV
+     */
+    exportAsCSV(filter = {}) {
+        const messages = this.searchMessages(filter);
+        const headers = ['ID', 'Topic', 'Payload', 'QoS', 'Retained', 'Timestamp', 'DateTime', 'UserProperties'];
+        const rows = messages.map((msg) => [
+            msg.id,
+            msg.topic,
+            msg.payload.toString('utf-8').replace(/"/g, '""'), // Escape quotes
+            msg.qos,
+            msg.retained,
+            msg.timestamp,
+            new Date(msg.timestamp).toISOString(),
+            msg.userProperties ? JSON.stringify(msg.userProperties).replace(/"/g, '""') : '',
+        ]);
+        const csvContent = [
+            headers.join(','),
+            ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+        ].join('\n');
+        return csvContent;
+    }
+    /**
+     * Close the database
+     */
+    close() {
+        this.db.close();
+    }
+}
+exports.MessageHistory = MessageHistory;
+//# sourceMappingURL=MessageHistory.js.map

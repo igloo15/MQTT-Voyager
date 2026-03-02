@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  mqtt-voyager:
+    build: .
+    image: mqtt-voyager:latest
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - DATA_DIR=/app/data
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-generate-a-64-char-hex-string}
+    restart: unless-stopped
+
+  # Optional: include a local Mosquitto broker for testing
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: unless-stopped

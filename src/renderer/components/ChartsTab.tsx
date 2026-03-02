@@ -7,7 +7,7 @@ import { StatisticsPanel } from './charts/StatisticsPanel';
 import { extractValue } from '../utils/valueExtractor';
 import type { ChartDataPoint, ChartMetricConfig, TimeRangePreset } from '../types/charts';
 import type { MqttMessage } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import dayjs, { Dayjs } from 'dayjs';
 
 export const ChartsTab: React.FC = () => {
@@ -23,7 +23,7 @@ export const ChartsTab: React.FC = () => {
   useEffect(() => {
     const loadTopics = async () => {
       try {
-        const tree = await window.electronAPI.invoke(IPC_CHANNELS.TOPIC_TREE_GET);
+        const tree = await api.topics.getTree();
         const topics = extractTopicPaths(tree);
         setAvailableTopics(topics);
       } catch (error) {
@@ -33,7 +33,7 @@ export const ChartsTab: React.FC = () => {
 
     loadTopics();
 
-    const removeListener = window.electronAPI.on(IPC_CHANNELS.TOPIC_TREE_UPDATED, loadTopics);
+    const removeListener = api.events.onTopicTreeUpdated(loadTopics);
     return removeListener;
   }, []);
 
@@ -41,9 +41,7 @@ export const ChartsTab: React.FC = () => {
   useEffect(() => {
     if (!autoRefresh || timeRangePreset !== 'live') return;
 
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.MQTT_MESSAGE,
-      (message: MqttMessage) => {
+    const removeListener = api.events.onMessage((message: MqttMessage) => {
         metrics.forEach((metric) => {
           if (!metric.enabled) return;
           if (!topicMatches(message.topic, metric.topic)) return;
@@ -89,7 +87,7 @@ export const ChartsTab: React.FC = () => {
       }
 
       try {
-        const messages = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_SEARCH, {
+        const messages = await api.messages.search({
           startTime,
           endTime,
           limit: 50000,

@@ -8,7 +8,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons';
 import type { ConnectionStatus } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import { TopicTreeViewer } from './TopicTreeViewer';
 import { SubscriptionManager } from './SubscriptionManager';
 import { MessageList } from './MessageList';
@@ -33,16 +33,13 @@ export const MainContent: React.FC<MainContentProps> = ({
   const [currentConnectionId, setCurrentConnectionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('MainContent: Connection changed to:', connectionId);
-        setCurrentConnectionId(connectionId);
-      }
-    );
+    const removeListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('MainContent: Connection changed to:', connectionId);
+      setCurrentConnectionId(connectionId);
+    });
 
     // Query current connection on mount
-    window.electronAPI.invoke(IPC_CHANNELS.CONNECTION_GET_CURRENT)
+    api.connections.getCurrentId()
       .then((id) => setCurrentConnectionId(id))
       .catch(console.error);
 

@@ -25,7 +25,7 @@ import {
   ClearOutlined,
 } from '@ant-design/icons';
 import type { Statistics as StatsType } from '@shared/types/models';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 
 export const Statistics: React.FC = () => {
   const [stats, setStats] = useState<StatsType | null>(null);
@@ -36,17 +36,14 @@ export const Statistics: React.FC = () => {
   useEffect(() => {
     loadStatistics(); // Load on mount
 
-    const removeListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, reloading statistics for:', connectionId);
-        if (connectionId) {
-          loadStatistics(); // Reload stats for new connection
-        } else {
-          setStats(null); // Clear stats when disconnected
-        }
+    const removeListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('Connection changed, reloading statistics for:', connectionId);
+      if (connectionId) {
+        loadStatistics(); // Reload stats for new connection
+      } else {
+        setStats(null); // Clear stats when disconnected
       }
-    );
+    });
 
     return () => removeListener();
   }, []);
@@ -65,7 +62,7 @@ export const Statistics: React.FC = () => {
   const loadStatistics = async () => {
     setLoading(true);
     try {
-      const statistics = await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_GET_STATS);
+      const statistics = await api.messages.getStats();
       setStats(statistics);
     } catch (error) {
       console.error('Failed to load statistics:', error);
@@ -83,7 +80,7 @@ export const Statistics: React.FC = () => {
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await window.electronAPI.invoke(IPC_CHANNELS.MESSAGE_RESET_STATS);
+          await api.messages.resetStats();
           antMessage.success('Analytics reset successfully');
           loadStatistics();
         } catch (error: any) {

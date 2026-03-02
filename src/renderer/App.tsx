@@ -1,8 +1,8 @@
 import { Layout, message, ConfigProvider, theme as antdTheme } from 'antd';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { theme as antdThemeHook } from 'antd';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
 import type { ConnectionConfig, ConnectionStatus } from '@shared/types/models';
+import { api } from './api/transport';
 import { AppHeader } from './components/AppHeader';
 import { ConnectionSidebar } from './components/ConnectionSidebar';
 import { MainContent } from './components/MainContent';
@@ -19,6 +19,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
   const { token } = antdThemeHook.useToken();
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [messageCount, setMessageCount] = useState<number>(0);
+  const messageCountRef = useRef(0);
   const [selectedConnection, setSelectedConnection] = useState<ConnectionConfig | undefined>();
   const [isFormModalVisible, setIsFormModalVisible] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -56,26 +57,30 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
 
   useEffect(() => {
     // Listen for connection status updates
-    const removeStatusListener = window.electronAPI.on(
-      IPC_CHANNELS.MQTT_STATUS,
-      (status: ConnectionStatus) => {
-        if (isDevelopment) {
-          console.log('Status update:', status);
-        }
-        setConnectionStatus(status);
+    const removeStatusListener = api.events.onStatus((status: ConnectionStatus) => {
+      if (isDevelopment) {
+        console.log('Status update:', status);
       }
-    );
+      setConnectionStatus(status);
+    });
 
-    // Listen for incoming messages
-    const removeMessageListener = window.electronAPI.on(IPC_CHANNELS.MQTT_MESSAGE, (msg: any) => {
+    // Listen for incoming messages — increment a ref (not state) to avoid
+    // triggering a React re-render on every single message
+    const removeMessageListener = api.events.onMessage((msg: any) => {
       if (isDevelopment) {
         console.log('Received message:', msg);
       }
-      setMessageCount((prev) => prev + 1);
+      messageCountRef.current += 1;
     });
 
+    // Flush accumulated count to state at most ~4 times/sec so the header
+    // counter stays live without causing per-message renders
+    const countFlushInterval = setInterval(() => {
+      setMessageCount(messageCountRef.current);
+    }, 250);
+
     // Listen for errors
-    const removeErrorListener = window.electronAPI.on(IPC_CHANNELS.MQTT_ERROR, (error: string) => {
+    const removeErrorListener = api.events.onError((error: string) => {
       console.error('MQTT Error:', error);
       message.error(`MQTT Error: ${error}`);
     });
@@ -84,6 +89,7 @@ function AppContent({ isDarkMode, setIsDarkMode }: AppContentProps) {
       removeStatusListener();
       removeMessageListener();
       removeErrorListener();
+      clearInterval(countFlushInterval);
     };
   }, [isDevelopment]);
 

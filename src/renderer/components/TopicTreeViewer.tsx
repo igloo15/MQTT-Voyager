@@ -27,7 +27,7 @@ import {
   ApiOutlined,
   EyeOutlined,
 } from '@ant-design/icons';
-import { IPC_CHANNELS } from '@shared/types/ipc.types';
+import { api } from '../api/transport';
 import { formatDistanceToNow } from 'date-fns';
 
 const { Search } = Input;
@@ -52,18 +52,15 @@ export const TopicTreeViewer: React.FC = () => {
     loadTopicTree();
 
     // Listen for topic tree updates
-    const removeTreeListener = window.electronAPI.on(IPC_CHANNELS.TOPIC_TREE_UPDATED, () => {
+    const removeTreeListener = api.events.onTopicTreeUpdated(() => {
       loadTopicTree();
     });
 
     // Listen for connection changes
-    const removeConnectionListener = window.electronAPI.on(
-      IPC_CHANNELS.CONNECTION_CHANGED,
-      (connectionId: string | null) => {
-        console.log('Connection changed, topic tree will be cleared:', connectionId);
-        // Tree cleared in main process, just wait for TOPIC_TREE_UPDATED event
-      }
-    );
+    const removeConnectionListener = api.events.onConnectionChanged((connectionId: string | null) => {
+      console.log('Connection changed, topic tree will be cleared:', connectionId);
+      // Tree cleared in main process, just wait for TOPIC_TREE_UPDATED event
+    });
 
     return () => {
       removeTreeListener();
@@ -73,7 +70,7 @@ export const TopicTreeViewer: React.FC = () => {
 
   const loadTopicTree = async () => {
     try {
-      const topicTree = await window.electronAPI.invoke(IPC_CHANNELS.TOPIC_TREE_GET);
+      const topicTree = await api.topics.getTree();
       const converted = convertToTreeData(topicTree);
       setTreeData(converted);
     } catch (error) {
@@ -144,7 +141,7 @@ export const TopicTreeViewer: React.FC = () => {
                       size="small"
                       icon={<EyeOutlined />}
                       onClick={() => {
-                        window.electronAPI.send(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, node.fullPath);
+                        api.events.sendFilterTopic(node.fullPath);
                         antMessage.success(`Filtering messages to topic: ${node.fullPath}`);
                       }}
                     />
@@ -241,38 +238,29 @@ export const TopicTreeViewer: React.FC = () => {
     try {
       switch (key) {
         case 'subscribe':
-          await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-            topic: node.fullPath,
-            qos: 0,
-          });
+          await api.mqtt.subscribe(node.fullPath, 0);
           antMessage.success(`Subscribed to ${node.fullPath}`);
           await loadTopicTree();
           break;
 
         case 'unsubscribe':
-          await window.electronAPI.invoke(IPC_CHANNELS.MQTT_UNSUBSCRIBE, node.fullPath);
+          await api.mqtt.unsubscribe(node.fullPath);
           antMessage.success(`Unsubscribed from ${node.fullPath}`);
           await loadTopicTree();
           break;
 
         case 'subscribe-single':
-          await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-            topic: `${node.fullPath}/+`,
-            qos: 0,
-          });
+          await api.mqtt.subscribe(`${node.fullPath}/+`, 0);
           antMessage.success(`Subscribed to ${node.fullPath}/+`);
           break;
 
         case 'subscribe-multi':
-          await window.electronAPI.invoke(IPC_CHANNELS.MQTT_SUBSCRIBE, {
-            topic: `${node.fullPath}/#`,
-            qos: 0,
-          });
+          await api.mqtt.subscribe(`${node.fullPath}/#`, 0);
           antMessage.success(`Subscribed to ${node.fullPath}/#`);
           break;
 
         case 'filter-messages':
-          window.electronAPI.send(IPC_CHANNELS.MESSAGE_FILTER_TOPIC, node.fullPath);
+          api.events.sendFilterTopic(node.fullPath);
           antMessage.success(`Filtering messages to topic: ${node.fullPath}`);
           break;
 
@@ -331,7 +319,7 @@ export const TopicTreeViewer: React.FC = () => {
       });
     };
 
-    window.electronAPI.invoke(IPC_CHANNELS.TOPIC_TREE_GET).then((topicTree) => {
+    api.topics.getTree().then((topicTree) => {
       findMatchingKeys(topicTree);
       setExpandedKeys([...new Set(keys)]);
       setAutoExpandParent(true);
